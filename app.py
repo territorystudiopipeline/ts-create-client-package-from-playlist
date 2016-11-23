@@ -193,3 +193,5 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         self.log_info("Found %s existing files" % len(existingFiles))
         self.log_info("%s files failed" % len(failed))
 
+        self.log_info("Finished")
+
