@@ -16,6 +16,7 @@ import tank
 import sys
 import os
 import re
+import datetime
 from shutil import copy
 
 class CopyPlaylistVersionsToFolder(tank.platform.Application):
@@ -44,10 +45,23 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
 
         self.engine.register_command("copyPlaylistVersionsToFolder_preview", self.copyPlaylistVersionsToFolder_preview, p)
 
+    def returnVersionNumberIntFromStringOrNone(self, fileString):
+        regex = "_v\d{4}"
+        result = re.search(regex, fileString)
+        if not result :
+            return None
+        versionStringMatch = result.group(0)
+        intVersion = int( versionStringMatch[2:] )
+        return intVersion
+
     def copyPlaylistVersionsToFolder_preview(self, entity_type, entity_ids):
         self.copyPlaylistVersionsToFolder(entity_type, entity_ids, preview=True)
 
     def copyPlaylistVersionsToFolder(self, entity_type, entity_ids, preview=False):
+
+        #Get shotgun
+        tank = self.tank
+        shotgun = tank.shotgun
 
         #Get the context
         context = self.tank.context_from_entity(entity_type, entity_ids[0])
@@ -58,9 +72,18 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         #Get the playlist ID
         playlistID = context.entity['id']
 
-        #Get shotgun
-        tank = self.tank
-        shotgun = tank.shotgun
+        #Get the playlist recipient
+        filters = [['playlist', 'is', {'type':'Playlist', 'id':playlistID}]]
+        result=shotgun.find_one("Playlist",[['id','is', playlistID] ], ['sg_recipient'])
+        if not result['sg_recipient']:
+            self.log_warning("There is no 'Recipient' set on this playlist. Aborting...")
+            return
+        else : 
+            recipient = result['sg_recipient']
+            self.log_info("\nRecipient : %s\n" % recipient)
+
+        # self.log_info(shotgun.schema_field_read('Version'))
+        # self.log_info(context.entity)
 
         #Find all Versions where playlist matches the ID and the project matches
         filters = [['playlist', 'is', {'type':'Playlist', 'id':playlistID}]]
@@ -155,6 +178,11 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
             else : 
                 self.log_info("Source file NOT found on disk. Skipping.")
                 failed.append(pathToMovie)
+
+                #Attempt to see if it's a user problem
+                if '/Users/' in pathToMovie : 
+                    self.log_info('Source file appears to be on a users machine.')
+
                 continue
 
             #Do the copy if it doesn't already exist
@@ -162,30 +190,52 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
             destinationFilePath = os.path.join(playlistDir, fileName)
 
             if os.path.exists(destinationFilePath):
-                self.log_info("File already exists for this Version. Skipping.")
+                self.log_info("File already exists for this Version. Skipping the copy.")
                 existingFiles.append(destinationFilePath)
                 self.log_info(' ')
-                continue
-
-            self.log_info("Creating a copy : %s >> %s" % (pathToMovie, destinationFilePath))
-            if not preview :
-                try : 
-                    #Do the copy
-                    # cmd = "ln -s %s %s" % (pathToMovie,destinationFilePath)
-                    # os.system(cmd)
-                    copy(pathToMovie, destinationFilePath)
-                    self.log_info("File successfully copied.")
-                    createdFiles.append(destinationFilePath)
-                    self.log_info(' ')
-                except Exception as e :
-                    self.log_warning("Could not copy file. Skipping file. Error : %s" % e)
-                    self.log_info(' ')
-                    failed.append(pathToMovie)
-                    continue
             else : 
-                self.log_info("PREVIEW MODE : Not copying file.")
-                createdFiles.append(destinationFilePath)
-                self.log_info(' ')
+                self.log_info("Creating a copy : %s >> %s" % (pathToMovie, destinationFilePath))
+                if not preview :
+                    try : 
+                        #Do the copy
+                        # cmd = "ln -s %s %s" % (pathToMovie,destinationFilePath)
+                        # os.system(cmd)
+                        copy(pathToMovie, destinationFilePath)
+                        self.log_info("File successfully copied.")
+                        createdFiles.append(destinationFilePath)
+                    except Exception as e :
+                        self.log_warning("Could not copy file. Skipping file. Error : %s" % e)
+                        self.log_info(' ')
+                        failed.append(pathToMovie)
+                        continue
+                else : 
+                    self.log_info("PREVIEW MODE : Not copying file.")
+                    createdFiles.append(destinationFilePath)
+
+            #Get the versionNumber, sendToValue and sendDate
+            print "Updating the version info..."
+            versionNumber = self.returnVersionNumberIntFromStringOrNone(fileName)
+            versionNumberString = 'v%s' % str(versionNumber).zfill(4)
+            today = datetime.date.today()
+            sendDate = today.strftime('%Y-%m-%d') #30/11/16
+
+            self.log_info("Info to update : %s, %s, %s" % (versionNumberString, recipient, sendDate))
+            self.log_info(' ')
+
+            #Update the version with the sent to, send date, and version number info
+            updatedData = {
+                'sg_version_number': versionNumberString,
+                'sg_sent_to': recipient,
+                'sg_send_date': sendDate,
+            }
+            if not preview :
+                result = shotgun.update('Version', version['id'], updatedData)
+                self.log_info("Version information updated.")
+                self.log_info(result)
+            else : 
+                self.log_info("PREVIEW MODE : Not actually writing Version info")
+
+            self.log_info(" ")
 
 
         #Report
