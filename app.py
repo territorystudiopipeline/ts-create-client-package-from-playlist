@@ -15,6 +15,7 @@ App that copies all of the versions in the chosen playlist to a dated folder in 
 import tank
 import sys
 import os
+import subprocess
 import re
 import datetime
 from shutil import copy
@@ -212,8 +213,27 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
                     self.log_info("PREVIEW MODE : Not copying file.")
                     createdFiles.append(destinationFilePath)
 
+            #Special case PSD convert - currently OSX only
+            if sys.platform == 'darwin' :
+                #If the destination file is a PSD, we can convert it to PSD on the command line
+                if os.path.splitext(destinationFilePath)[1] in ['.psd', '.PSD'] :
+                    self.log_info( "File is a PSD. Attempting conversion on the command line...")
+
+                    #Make the PNG File path
+                    pngFilePath = os.path.join( os.path.dirname(destinationFilePath), "%s.png" % os.path.splitext(destinationFilePath)[0] )
+                    if not os.path.exists(pngFilePath):
+                        if not preview :
+                            cmd = "sips -s format png %s --out %s" % (destinationFilePath, pngFilePath)
+                            process = subprocess.Popen(cmd.split())
+                            process.wait()
+                            self.log_info( "File conversion completed.")
+                        else : 
+                            self.log_info( "PREVIEW MODE : Not converting file.")
+                    else : 
+                        self.log_info( "PNG version already exists")
+
             #Get the versionNumber, sendToValue and sendDate
-            print "Updating the version info..."
+            self.log_info( "Updating the version info...")
             versionNumber = self.returnVersionNumberIntFromStringOrNone(fileName)
             versionNumberString = 'v%s' % str(versionNumber).zfill(4)
             today = datetime.date.today()
