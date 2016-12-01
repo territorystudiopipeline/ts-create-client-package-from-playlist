@@ -193,7 +193,6 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
             if os.path.exists(destinationFilePath):
                 self.log_info("File already exists for this Version. Skipping the copy.")
                 existingFiles.append(destinationFilePath)
-                self.log_info(' ')
             else : 
                 self.log_info("Creating a copy : %s >> %s" % (pathToMovie, destinationFilePath))
                 if not preview :
@@ -206,7 +205,6 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
                         createdFiles.append(destinationFilePath)
                     except Exception as e :
                         self.log_warning("Could not copy file. Skipping file. Error : %s" % e)
-                        self.log_info(' ')
                         failed.append(pathToMovie)
                         continue
                 else : 
@@ -239,15 +237,41 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
             today = datetime.date.today()
             sendDate = today.strftime('%Y-%m-%d') #30/11/16
 
-            self.log_info("Info to update : %s, %s, %s" % (versionNumberString, recipient, sendDate))
-            self.log_info(' ')
+            #Get the previous version sent
+            #Look at the versions on the entity. Get their sg_sent_to and sg_version_number fields.
+            #Isolate versions that are sent to same person. Get version with highest sg_version_number that is lower than current
+            filters = [ ['entity', 'is', {'type':'Asset', 'id': entity['id'] } ] ]
+            fields = ['name', 'id', 'sg_sent_to', 'sg_version_number']
+            allEntityVersions = shotgun.find('Version', filters, fields)
+            
+            #Skip versions with no sentTo/versionNumber info or sentTo that don't match the current recipient, and THIS version
+            releventEntityVersions = [x for x in allEntityVersions if (x['sg_sent_to'] and x['sg_version_number']) and x['sg_sent_to'] == recipient and x['id'] != version['id']]
+
+            #Loop through and get latest
+            previousVersionSent = 'None'
+            previousVersionSentInt = -1
+            for entityVersion in releventEntityVersions : 
+                
+                #Get the other version's version number
+                ent_versionNumber = entityVersion['sg_version_number']
+                intEnt_versionNumber = int(ent_versionNumber[1:])
+
+                #Set previous version sent var ONLY if ent_versionNumber is less than current
+                if intEnt_versionNumber < versionNumber :
+                    if intEnt_versionNumber > previousVersionSentInt :
+                        previousVersionSentInt = intEnt_versionNumber
+                        previousVersionSent = ent_versionNumber
+
+            self.log_info("Info to update : %s, %s, %s, %s" % (versionNumberString, recipient, sendDate, previousVersionSent))
 
             #Update the version with the sent to, send date, and version number info
             updatedData = {
                 'sg_version_number': versionNumberString,
                 'sg_sent_to': recipient,
                 'sg_send_date': sendDate,
+                'sg_previous_sent_version':previousVersionSent
             }
+
             if not preview :
                 result = shotgun.update('Version', version['id'], updatedData)
                 self.log_info("Version information updated.")
