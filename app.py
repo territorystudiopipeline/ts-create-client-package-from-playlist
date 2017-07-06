@@ -128,7 +128,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
 
         #Get path to copy to
         projectPath = tank.project_path
-        dailiesDir = os.path.join(projectPath, 'client_io', 'test_out')
+        dailiesDir = os.path.join(projectPath, 'client_io', 'out')
         playlistDir = os.path.join(dailiesDir, playlistName)
 
 
