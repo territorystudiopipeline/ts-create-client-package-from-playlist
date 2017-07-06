@@ -128,7 +128,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
 
         #Get path to copy to
         projectPath = tank.project_path
-        dailiesDir = os.path.join(projectPath, 'clientIO', 'outgoing')
+        dailiesDir = os.path.join(projectPath, 'client_io', 'test_out')
         playlistDir = os.path.join(dailiesDir, playlistName)
 
 
@@ -136,7 +136,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
 
         #Check path exists
         if not os.path.exists(dailiesDir):
-            self.log_warning('....clientIO/outgoing directory cannot be found.')
+            self.log_warning('%s directory cannot be found.' % dailiesDir)
             return
 
         #Check if playlist dir exists
@@ -185,6 +185,16 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
                     sourcePath = pathToFrames
             else : 
                 sourcePath = pathToMovie 
+            
+            #Check mac or windows and change filepath accordingly
+            if os.name == "posix":
+                sourcePath = sourcePath.replace("Y:\\","/Volumes/FilmShare/")
+                sourcePath = sourcePath.replace("\\\\192.168.50.10\\filmshare\\","/Volumes/FilmShare/")
+                sourcePath = sourcePath.replace("\\","/")
+            else:
+                sourcePath = sourcePath.replace("/Volumes/FilmShare/", "Y:\\")
+                sourcePath = sourcePath.replace("/","\\")
+
 
             #Check the file still exists
             if not os.path.exists(sourcePath):
