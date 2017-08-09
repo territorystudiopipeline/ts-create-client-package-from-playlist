@@ -193,6 +193,10 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
                 sourcePath = sourcePath.replace("\\\\192.168.50.10\\FILMSHARE\\","/Volumes/FilmShare/")
                 sourcePath = sourcePath.replace("\\\\192.168.50.10\\FilmShare\\","/Volumes/FilmShare/")
                 sourcePath = sourcePath.replace("\\\\192.168.50.10\\Filmshare\\","/Volumes/FilmShare/")
+                sourcePath = sourcePath.replace("\\192.168.50.10\\filmshare\\","/Volumes/FilmShare/")
+                sourcePath = sourcePath.replace("\\192.168.50.10\\FILMSHARE\\","/Volumes/FilmShare/")
+                sourcePath = sourcePath.replace("\\192.168.50.10\\FilmShare\\","/Volumes/FilmShare/")
+                sourcePath = sourcePath.replace("\\192.168.50.10\\Filmshare\\","/Volumes/FilmShare/")
                 sourcePath = sourcePath.replace("\\","/")
             else:
                 sourcePath = sourcePath.replace("/Volumes/FilmShare/", "Y:\\")
