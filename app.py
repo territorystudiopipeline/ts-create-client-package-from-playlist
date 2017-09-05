@@ -128,7 +128,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
 
         #Get path to copy to
         projectPath = tank.project_path
-        dailiesDir = os.path.join(projectPath, 'client_io', 'test_out')
+        dailiesDir = os.path.join(projectPath, 'client_io', 'out')
         playlistDir = os.path.join(dailiesDir, playlistName)
 
 
@@ -184,22 +184,11 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
                 else :
                     sourcePath = pathToFrames
             else : 
-                sourcePath = pathToMovie 
+                sourcePath = pathToMovie
+
+            sourcePath = self.localise_path(sourcePath)
+            sourcePath = self.check_if_published_path_exists(versionConnection, sourcePath)
             
-            #Check mac or windows and change filepath accordingly
-            if os.name == "posix":
-                sourcePath = sourcePath.replace("Y:\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\\\192.168.50.10\\filmshare\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\\\192.168.50.10\\FILMSHARE\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\\\192.168.50.10\\FilmShare\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\\\192.168.50.10\\Filmshare\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\","/")
-            else:
-                sourcePath = sourcePath.replace("/Volumes/FilmShare/", "Y:\\")
-                sourcePath = sourcePath.replace("/Volumes/Filmshare/", "Y:\\")
-                sourcePath = sourcePath.replace("/Volumes/filmshare/", "Y:\\")
-                sourcePath = sourcePath.replace("/Volumes/FILMSHARE/", "Y:\\")
-                sourcePath = sourcePath.replace("/","\\")
 
 
             #Check the file still exists
@@ -327,8 +316,71 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
                 self.log_warning(e)
 
 
+
+
+
         #Report
         self.log_info("\nFinished")
         self.log_info("....Created %s files" % len(createdFiles))
         self.log_info("....Found %s existing files" % len(existingFiles))
         self.log_info("....%s files failed" % len(failed))
+
+    def localise_path(self, sourcePath):
+        nuPath = sourcePath
+        if os.name == "posix":
+            nuPath = nuPath.replace("Y:\\","/Volumes/FilmShare/")
+            nuPath = nuPath.replace("\\\\192.168.50.10\\filmshare\\","/Volumes/FilmShare/")
+            nuPath = nuPath.replace("\\\\192.168.50.10\\FILMSHARE\\","/Volumes/FilmShare/")
+            nuPath = nuPath.replace("\\\\192.168.50.10\\FilmShare\\","/Volumes/FilmShare/")
+            nuPath = nuPath.replace("\\\\192.168.50.10\\Filmshare\\","/Volumes/FilmShare/")
+            nuPath = nuPath.replace("\\","/")
+        else:
+            nuPath = nuPath.replace("/Volumes/FilmShare/", "Y:\\")
+            nuPath = nuPath.replace("/Volumes/Filmshare/", "Y:\\")
+            nuPath = nuPath.replace("/Volumes/filmshare/", "Y:\\")
+            nuPath = nuPath.replace("/Volumes/FILMSHARE/", "Y:\\")
+            nuPath = nuPath.replace("\\\\192.168.50.10\\filmshare\\","Y:\\")
+            nuPath = nuPath.replace("\\\\192.168.50.10\\FILMSHARE\\","Y:\\")
+            nuPath = nuPath.replace("\\\\192.168.50.10\\FilmShare\\","Y:\\")
+            nuPath = nuPath.replace("\\\\192.168.50.10\\Filmshare\\","Y:\\")
+            nuPath = nuPath.replace("/","\\")
+        if not os.path.exists(nuPath):
+
+            filesystem_locations = self.tank.shotgun.find("LocalStorage",
+                                                          [],
+                                                          ['mac_path', 'windows_path'])
+            for location in filesystem_locations:
+                nuPath = sourcePath
+                if location['mac_path'] is None or location['windows_path'] is None:
+                    continue
+                if os.name == "posix":
+                    if not nuPath.startswith(location['windows_path']):
+                        continue
+                    nuPath = nuPath.replace(location['windows_path'], location['mac_path'])
+                    nuPath = nuPath.replace("\\","/")
+                else:
+                    if not nuPath.startswith(location['mac_path']):
+                        continue
+                    nuPath = nuPath.replace(location['mac_path'], location['windows_path'])
+                    nuPath = nuPath.replace("/","\\")
+
+                if os.path.exists(nuPath):
+                    break
+                    
+ 
+
+        return nuPath
+
+    def check_if_published_path_exists(self, version_conn, sourcePath):
+        published_files = self.tank.shotgun.find('PublishedFile',
+                                            [['version.Version.id','is',version_conn['version']['id']]],
+                                            ['sg_publish_path','path','version'])
+        for pf in published_files:
+            if pf.get('sg_publish_path') and pf.get('path'):
+                if pf['sg_publish_path'].get('local_path') and pf['path'].get('local_path'):
+                    if self.localise_path(pf['path']['local_path']) == sourcePath:
+                        sourcePath = pf['sg_publish_path']['local_path']
+                        break
+
+        return sourcePath
+
