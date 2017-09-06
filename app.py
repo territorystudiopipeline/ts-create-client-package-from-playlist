@@ -189,27 +189,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
             sourcePath = self.localise_path(sourcePath)
             sourcePath = self.check_if_published_path_exists(versionConnection, sourcePath)
             
-<<<<<<< HEAD
-            #Check mac or windows and change filepath accordingly
-            if os.name == "posix":
-                sourcePath = sourcePath.replace("Y:\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\\\192.168.50.10\\filmshare\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\\\192.168.50.10\\FILMSHARE\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\\\192.168.50.10\\FilmShare\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\\\192.168.50.10\\Filmshare\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\192.168.50.10\\filmshare\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\192.168.50.10\\FILMSHARE\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\192.168.50.10\\FilmShare\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\192.168.50.10\\Filmshare\\","/Volumes/FilmShare/")
-                sourcePath = sourcePath.replace("\\","/")
-            else:
-                sourcePath = sourcePath.replace("/Volumes/FilmShare/", "Y:\\")
-                sourcePath = sourcePath.replace("/Volumes/Filmshare/", "Y:\\")
-                sourcePath = sourcePath.replace("/Volumes/filmshare/", "Y:\\")
-                sourcePath = sourcePath.replace("/Volumes/FILMSHARE/", "Y:\\")
-                sourcePath = sourcePath.replace("/","\\")
-=======
->>>>>>> release/v0.0.9
+
 
 
             #Check the file still exists
