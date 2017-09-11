@@ -156,10 +156,43 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         paths = []
         for published_file in published_files:
             if published_file.get('sg_publish_path'):
-                paths.append(published_file['sg_publish_path']['local_path'])
+                p = self.get_localised_path(published_file['sg_publish_path'])
+                if p:
+                    paths.append(p)
+                # paths.append(published_file['sg_publish_path']['local_path'])
             elif published_file.get('path'):
-                paths.append(published_file['path']['local_path'])
+                p = self.get_localised_path(published_file['path'])
+                if p:
+                    paths.append(p)
+                # paths.append(published_file['path']['local_path'])
         return paths
+
+    def get_localised_path(self, path_obj):
+        if path_obj.get("local_path"):
+            return path_obj["local_path"]
+        elif path_obj.get("url"):
+            url = path_obj.get("url")
+            nuPath = url.replace("file://", "//")
+            if os.name == "posix":
+                nuPath = nuPath.replace("Y:\\", "/Volumes/FilmShare/")
+                nuPath = nuPath.replace("\\\\192.168.50.10\\filmshare\\", "/Volumes/FilmShare/")
+                nuPath = nuPath.replace("\\\\192.168.50.10\\FILMSHARE\\", "/Volumes/FilmShare/")
+                nuPath = nuPath.replace("\\\\192.168.50.10\\FilmShare\\", "/Volumes/FilmShare/")
+                nuPath = nuPath.replace("\\\\192.168.50.10\\Filmshare\\", "/Volumes/FilmShare/")
+                nuPath = nuPath.replace("\\\\ldn-fs1\\projects\\", "/Volumes/projects/")
+                nuPath = nuPath.replace("\\", "/")
+            else:
+                nuPath = nuPath.replace("/Volumes/projects/", "\\\\ldn-fs1\\projects\\")
+                nuPath = nuPath.replace("/Volumes/FilmShare/", "Y:\\")
+                nuPath = nuPath.replace("/Volumes/Filmshare/", "Y:\\")
+                nuPath = nuPath.replace("/Volumes/filmshare/", "Y:\\")
+                nuPath = nuPath.replace("/Volumes/FILMSHARE/", "Y:\\")
+                nuPath = nuPath.replace("\\\\192.168.50.10\\filmshare\\", "Y:\\")
+                nuPath = nuPath.replace("\\\\192.168.50.10\\FILMSHARE\\", "Y:\\")
+                nuPath = nuPath.replace("\\\\192.168.50.10\\FilmShare\\", "Y:\\")
+                nuPath = nuPath.replace("\\\\192.168.50.10\\Filmshare\\", "Y:\\")
+                nuPath = nuPath.replace("/", "\\")
+            return nuPath
 
     def copy_file(self, source, dest_folder, preview):
         files = [source]
