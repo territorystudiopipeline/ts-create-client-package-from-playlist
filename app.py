@@ -36,7 +36,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         deny_platforms = self.get_setting("deny_platforms")
 
         p = {
-            "title": "Copy Playlist Files to Folder",
+            "title": "(Testing) Copy Playlist Files to Folder",
             "deny_permissions": deny_permissions,
             "deny_platforms": deny_platforms,
             "supports_multiple_selection": False
@@ -46,7 +46,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
             "copyPlaylistVersionsToFolder", self.copyPlaylistVersionsToFolder, p)
 
         p = {
-            "title": "Preview Copy Playlist Files to Folder",
+            "title": "(Testing) Preview Copy Playlist Files to Folder",
             "deny_permissions": deny_permissions,
             "deny_platforms": deny_platforms,
             "supports_multiple_selection": False
@@ -175,24 +175,24 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
             url = path_obj.get("url")
             nuPath = url.replace("file://", "//")
             if os.name == "posix":
-                nuPath = nuPath.replace("Y:\\", "/Volumes/FilmShare/")
-                nuPath = nuPath.replace("\\\\192.168.50.10\\filmshare\\", "/Volumes/FilmShare/")
-                nuPath = nuPath.replace("\\\\192.168.50.10\\FILMSHARE\\", "/Volumes/FilmShare/")
-                nuPath = nuPath.replace("\\\\192.168.50.10\\FilmShare\\", "/Volumes/FilmShare/")
-                nuPath = nuPath.replace("\\\\192.168.50.10\\Filmshare\\", "/Volumes/FilmShare/")
-                nuPath = nuPath.replace("\\\\ldn-fs1\\projects\\", "/Volumes/projects/")
                 nuPath = nuPath.replace("\\", "/")
+                nuPath = nuPath.replace("Y:/", "/Volumes/FilmShare/")
+                nuPath = nuPath.replace("//192.168.50.10/filmshare/", "/Volumes/FilmShare/")
+                nuPath = nuPath.replace("//192.168.50.10/FILMSHARE/", "/Volumes/FilmShare/")
+                nuPath = nuPath.replace("//192.168.50.10/FilmShare/", "/Volumes/FilmShare/")
+                nuPath = nuPath.replace("//192.168.50.10/Filmshare/", "/Volumes/FilmShare/")
+                nuPath = nuPath.replace("//ldn-fs1/projects/", "/Volumes/projects/")
             else:
-                nuPath = nuPath.replace("/Volumes/projects/", "\\\\ldn-fs1\\projects\\")
-                nuPath = nuPath.replace("/Volumes/FilmShare/", "Y:\\")
-                nuPath = nuPath.replace("/Volumes/Filmshare/", "Y:\\")
-                nuPath = nuPath.replace("/Volumes/filmshare/", "Y:\\")
-                nuPath = nuPath.replace("/Volumes/FILMSHARE/", "Y:\\")
+                nuPath = nuPath.replace("/", "\\")
+                nuPath = nuPath.replace("\\Volumes\\projects\\", "\\\\ldn-fs1\\projects\\")
+                nuPath = nuPath.replace("\\Volumes\\FilmShare\\", "Y:\\")
+                nuPath = nuPath.replace("\\Volumes\\Filmshare\\", "Y:\\")
+                nuPath = nuPath.replace("\\Volumes\\filmshare\\", "Y:\\")
+                nuPath = nuPath.replace("\\Volumes\\FILMSHARE\\", "Y:\\")
                 nuPath = nuPath.replace("\\\\192.168.50.10\\filmshare\\", "Y:\\")
                 nuPath = nuPath.replace("\\\\192.168.50.10\\FILMSHARE\\", "Y:\\")
                 nuPath = nuPath.replace("\\\\192.168.50.10\\FilmShare\\", "Y:\\")
                 nuPath = nuPath.replace("\\\\192.168.50.10\\Filmshare\\", "Y:\\")
-                nuPath = nuPath.replace("/", "\\")
             return nuPath
 
     def copy_file(self, source, dest_folder, preview):
@@ -200,8 +200,8 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         if self.is_sequence(source):
             files = self.get_sequence_files(source)
             dest_folder = os.path.join(dest_folder, self.get_sequence_sub_folder(source))
-            if not os.path.exists(dest_folder):
-                os.mkdir(dest_folder)
+        if not os.path.exists(dest_folder):
+            os.makedirs(dest_folder)
         for file in files:
             self.all_files.add(file)
             nu_path = os.path.join(dest_folder, os.path.basename(file))
