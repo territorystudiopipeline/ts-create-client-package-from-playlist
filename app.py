@@ -28,6 +28,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
     all_files = set()
     copied = set()
     not_copied = set()
+    missing = set()
     already_existing = set()
 
     def init_app(self):
@@ -37,6 +38,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
 
         p = {
             "title": "(Testing) Copy Playlist Files to Folder",
+
             "deny_permissions": deny_permissions,
             "deny_platforms": deny_platforms,
             "supports_multiple_selection": False
@@ -47,6 +49,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
 
         p = {
             "title": "(Testing) Preview Copy Playlist Files to Folder",
+
             "deny_permissions": deny_permissions,
             "deny_platforms": deny_platforms,
             "supports_multiple_selection": False
@@ -80,6 +83,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
             self.log_info("")
             self.log_info("Finished")
             self.log_info("Total files found: %d" % len(self.all_files))
+            self.log_info("Files missing: %d" % len(self.missing))
             self.log_info("Files copied: %d" % len(self.copied))
             self.log_info("Files already existing: %d" % len(self.already_existing))
             if preview:
@@ -199,6 +203,9 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         files = [source]
         if self.is_sequence(source):
             files = self.get_sequence_files(source)
+            if len(files) == 0:
+                self.log_exception("MISSING FILE: " + str(file))
+                self.missing.add(file)
             dest_folder = os.path.join(dest_folder, self.get_sequence_sub_folder(source))
         if not os.path.exists(dest_folder):
             os.makedirs(dest_folder)
@@ -209,8 +216,12 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
                 self.already_existing.add(file)
             else:
                 if not preview:
-                    copy(file, nu_path)
-                    self.copied.add(file)
+                    if os.path.exists(file):
+                        copy(file, nu_path)
+                        self.copied.add(file)
+                    else:
+                        self.log_exception("MISSING FILE: " + str(file))
+                        self.missing.add(file)
 
     def is_sequence(self, path):
         pattern = re.compile(".*%\d+d\..*")
