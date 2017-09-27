@@ -37,8 +37,8 @@ configuration:
 requires_shotgun_fields:
 
 # More verbose description of this item 
-display_name: "Copy Playlist Versions to Folder"
-description: "Copies the Versions in the selected playlist to a specific folder on disk."
+display_name: "Create Client Package From Playlist"
+description: "Create Client Package From Playlist"
 
 # Required minimum versions for this item to run
 requires_shotgun_version:
