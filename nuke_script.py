@@ -6,10 +6,61 @@ import re
 new_lighting_pass_file_name = "E_%(shot)s_graphics_territory_lgt_%(element)s_%(desc)s_%(pass)s_%(version)s.%04d.%(ext)s"
 
 
+accepted_lighting_elements = ['core', 'console', 'driftlink', 'flower']
+
+accepted_lighting_positions = ['l', 'c', 'r']
+
+accepted_lighting_desc = ['rgba', 'lines', 'ui', 'protractor', 'text3D', 'miscUI', 'neuralNet', 'solid']
+
+accepted_lighting_passes = ['colour_passes', 'beauty', 'alpha', 'direct_diffuse',
+                            'direct_specular', 'diffuse_albedo', 'indirect_diffuse',
+                            'indirect_specular', 'reflection', 'refraction', 'z', 'n',
+                            'refraction_opacity', 'crypto_material', 'depth', 'emission',
+                            'normals', 'p', 'pref', 'vector', 'id_1', 'id_2', 'id_3', 'id_4', 'id_5', 'id_6', ]
+
+global_version = "v000"
+
+report_str = ""
+
+
 def main():
-    nuke.scriptOpen(get_nuke_script())
-    read_paths = get_valid_read_nodes()
-    map(localise_read, read_paths)
+    global report_str
+    script = get_nuke_script()
+    nuke.scriptOpen(script)
+    global_version = get_version_str(script)
+    read_nodes = get_valid_read_nodes()
+    map(localise_read_node, read_nodes)
+    print report_str
+
+
+def check_missmatching_versions(read_nodes):
+    paths = {}
+    for node in read_nodes:
+        path = get_read_node_path(node)
+        path = os.path.basename(path)
+        path_without_version = get_path_without_version(path)
+        # print path, path_without_version
+        if path_without_version not in paths:
+            paths[path_without_version] = [path]
+        elif path not in paths[path_without_version]:
+            paths[path_without_version].append(path)
+    e_str = ""
+    for path in paths.keys():
+        if len(paths[path]) != 1:
+            for p in paths[path]:
+                e_str += "%s\n" % p
+    if e_str != "":
+        e_str = "Multiple versions of the same element are being used in this script.\n" + e_str
+        raise Exception(e_str)
+
+
+def get_path_without_version(path):
+    regex = re.compile("(.*)(v[0-9]+)(.*$)", re.IGNORECASE)
+    search = re.search(regex, path)
+    if search and len(search.groups()) == 3:
+        return search.group(1) + search.group(3)
+    else:
+        return path
 
 
 def get_nuke_script():
@@ -35,6 +86,7 @@ def get_valid_read_nodes():
     for node in all_nodes:
         if is_enabled(node) and matches_expected_pattern(node):
             valid_nodes.append(node)
+    check_missmatching_versions(valid_nodes)
     return valid_nodes
 
 
@@ -58,7 +110,9 @@ def matches_expected_pattern(read_node):
                is_lighting(path) or
                is_quicktime(path) or
                is_precomp(path))
-
+    if is_lighting(path):
+        #report on validity
+        get_lighting_parts(os.path.basename(path), report_check=True)
     if not matched:
         report = "Path does not match any expected patterns: %s\n" % path
         report += "Patterns:\n"
@@ -95,11 +149,12 @@ def get_folders_of_path(path):
 
 
 def is_comp(path):
-    return "_comp_" in path 
+    return "_comp_" in os.path.basename(path)
 
 
 def is_lighting(path):
-    return "_lgt_" in path
+    is_it = "_lgt_" in os.path.basename(path)
+    return is_it
 
 
 def is_quicktime(path):
@@ -107,11 +162,15 @@ def is_quicktime(path):
 
 
 def is_precomp(path):
-    return "_precomp_" in path
+    return "_precomp_" in os.path.basename(path)
 
 
-def localise_read(read_node):
+def localise_read_node(read_node):
+    global report_str
     path = get_read_node_path(read_node)
+
+    report_str += "\n"
+    report_str += "Read path: %s\n" % path
     source_files = get_source_files(read_node)
     for source_file in source_files:
         dest_file = get_dest_path(source_file)
@@ -142,17 +201,24 @@ def is_sequence(path):
 
 
 def get_dest_path(path):
+    sub_path = ""
     if is_comp(path):
         sub_path = get_simple_dest_path(path)
     elif is_precomp(path):
         sub_path = get_simple_dest_path(path)
     elif is_ingest(path):
-        print path
+        # print path
         sub_path = get_ingest_dest_path(path)
     elif is_lighting(path):
         sub_path = get_lighting_dest_path(path)
     elif is_quicktime(path):
         sub_path = get_quicktime_dest_path(path)
+    script_path = get_nuke_script()
+    root_of_export = os.path.dirname(os.path.dirname(script_path))
+    if sub_path == "":
+        raise Exception("Could not get a path to copy this file to: %s" % path)
+    dest_path = os.path.join(root_of_export, sub_path)
+    return dest_path
 
 
 def get_simple_dest_path(path):
@@ -164,7 +230,7 @@ def get_simple_dest_path(path):
     dic = {"shot": get_shot_name(filename),
            "label": get_label(filename),
            "ext_and_frame": get_ext_and_frame(filename),
-           "version": get_version_str(filename)}
+           "version": global_version}
     new_filename = comp_filename % dic
     new_foldername = comp_foldername % dic
     new_sub_path = os.path.join("ELEMENTS", new_foldername, new_filename)
@@ -197,7 +263,7 @@ def camelcase_string(s):
     for part in parts:
         camelcase += part.title()
     if len(camelcase) != 0:
-        camelcase[0] = camelcase[0].lower()
+        camelcase = camelcase[0].lower() + camelcase[1:]
     return camelcase
 
 
@@ -205,7 +271,7 @@ def get_ext_and_frame(path):
     frame = None
     regex = re.compile(".*[._-](\d+)\.[^.]+$", re.IGNORECASE)
     frame_search = re.search(regex, path)
-    if len(frame_search.groups()) == 1:
+    if frame_search and len(frame_search.groups()) == 1:
         frame = frame_search.group(1)
     ext = os.path.splitext(path)[1]
     if frame:
@@ -233,47 +299,78 @@ def get_ingest_dest_path(path):
 
 def get_lighting_dest_path(path):
     filename = os.path.basename(path)
-    lighting_file_name = "E_%(shot)s_graphics_territory_lgt%(element)s%(desc)s%(pass)s_%(version)s.%(ext_and_frame)s"
-    lighting_foldername = "E_%(shot)s_graphics_territory_lgt%(element)s_%(desc)s_%(pass)s_%(version)s"
-    dic = {"shot": get_shot_name(filename),
-           "label": get_label(filename),
-           "ext_and_frame": get_ext_and_frame(filename),
-           "element": get_lighting_element(filename),
-           "desc": get_lighting_desc(filename),
-           "pass": get_lighting_pass(filename),
-           "version": get_version_str(filename)}
-    new_filename = lighting_file_name % dic
-    new_foldername = lighting_foldername % dic
+    dic = get_lighting_parts(filename)
+    if dic['desc']:
+        lighting_folder = "E_%(shot)s_graphics_territory_%(element)s_%(position)s_%(desc)s_%(pass)s_%(version)s"
+    else:
+        lighting_folder = "E_%(shot)s_graphics_territory_%(element)s_%(position)s_%(pass)s_%(version)s"
+    if dic['frame']:
+        lighting_file = lighting_folder + ".%(frame)s.%(ext)s"
+    else:
+        lighting_file = lighting_folder + ".%(ext)s"
+    new_filename = lighting_file % dic
+    new_foldername = lighting_folder % dic
     new_sub_path = os.path.join("ELEMENTS", new_foldername, new_filename)
     return new_sub_path
 
 
-def get_lighting_element(filename):
-    regex = re.compile("[-._]([a-zA-Z0-9]{2,})[-._]v\d+", re.IGNORECASE)
-    search = re.search(regex, path)
-    if len(search.groups()) == 1:
-        s = search.group(1)
-        return s
+def get_lighting_parts(filename, report_check = False):
+    global report_str
+    regex_str = "([a-zA-Z]{3}_[0-9]{4})"  # shot
+    regex_str += "_lgt_"
+    regex_str += "([a-zA-Z0-9]*)"  # element
+    regex_str += "[-._]?"
+    regex_str += "([a-zA-Z]?)"  # position
+    regex_str += "[-._]?"
+    regex_str += "([a-zA-Z0-9]*)"  # lighting dec
+    regex_str += "[-._]"
+    regex_str += "v[0-9]+"
+    regex_str += "[_]?"
+    regex_str += "([a-zA-Z0-9_-]*)"  # lighting pass
+    regex_str += "[._-]?"
+    regex_str += "([0-9]*|%[0-9]+d|#+)"  # frame
+    regex_str += "\."
+    regex_str += "([^.]+)"  # ext
+    regex_str += "$"
+    regex = re.compile(regex_str, re.IGNORECASE)
+    search = re.search(regex, filename)
+    e_str = ""
+    if search and len(search.groups()) == 7:
+        shot = search.group(1)
+        element = search.group(2)
+        position = search.group(3)
+        desc = search.group(4)
+        light_pass = search.group(5)
+        frame = search.group(6)
+        ext = search.group(7)
 
+        return_dict = {}
+        return_dict["shot"] = shot
+        return_dict["frame"] = frame
+        return_dict["ext"] = ext
+        return_dict["element"] = element
+        return_dict["position"] = position
+        return_dict["desc"] = desc
+        return_dict["pass"] = light_pass
+        return_dict["version"] = global_version
+        if report_check:
+            if element.lower() not in accepted_lighting_elements:
+                print "Lighting Element '%s' from '%s' not recognised\n" % (element, filename)
 
-def get_lighting_desc(filename):
-    regex = re.compile("[-._]([a-zA-Z0-9]{2,})[-._]v\d+", re.IGNORECASE)
-    search = re.search(regex, path)
-    if len(search.groups()) == 1:
-        s = search.group(1)
-        return s
+            if position.lower() not in accepted_lighting_positions:
+                print "Lighting position '%s' from '%s' not recognised\n" % (position, filename)
 
+            if desc and desc.lower() not in accepted_lighting_desc:
+                print "Lighting desc '%s' from '%s' not recognised\n" % (desc, filename)
 
-def get_lighting_position(filename):
-    regex = re.compile("([lLrRcC])[-._][a-zA-Z0-9]*[-._]?v\d+", re.IGNORECASE)
-    search = re.search(regex, path)
-    if len(search.groups()) == 1:
-        s = search.group(1)
-        return s
+            if light_pass and light_pass.lower() not in accepted_lighting_passes:
+                print "Lighting Pass '%s' from '%s' not recognised\n" % (light_pass, filename)
+        return return_dict
 
-
-def get_lighting_pass(filename):
-    pass
+        
+    else:
+        e_str = "Path does not match expected lighting pattern: %s" % filename
+    raise Exception(e_str)
 
 
 
@@ -283,9 +380,9 @@ def get_quicktime_dest_path(path):
     return new_location
 
 
-
 def copy_file(source, dest):
-    print 
+    global report_str
+    report_str += "--> %s\n" % os.path.basename(dest)
 
 
 main()
