@@ -1,7 +1,10 @@
 import nuke
 import os
 import re
-
+import sgtk
+import sgtk.util.shotgun as sg
+from tank_vendor.shotgun_authentication import ShotgunAuthenticator
+import datetime as dt
 
 new_lighting_pass_file_name = "E_%(shot)s_graphics_territory_lgt_%(element)s_%(desc)s_%(pass)s_%(version)s.%04d.%(ext)s"
 
@@ -20,18 +23,52 @@ accepted_lighting_passes = ['colour_passes', 'beauty', 'alpha', 'direct_diffuse'
 
 global_version = "v000"
 
-report_str = ""
+report_str = "Warnings:\n"
 
 
 def main():
     global report_str
+    global global_version
     script = get_nuke_script()
     nuke.scriptOpen(script)
     global_version = get_version_str(script)
     read_nodes = get_valid_read_nodes()
+    report_str += "\nExport History:\n"
     map(localise_read_node, read_nodes)
-    print report_str
+    update_shotgun()
 
+def get_shotgun_connection():
+    # Instantiate the CoreDefaultsManager. This allows the ShotgunAuthenticator to
+    # retrieve the site, proxy and optional script_user credentials from shotgun.yml
+    cdm = sgtk.util.CoreDefaultsManager()
+
+    # Instantiate the authenticator object, passing in the defaults manager.
+    authenticator = ShotgunAuthenticator(cdm)
+
+    # Create a user programmatically using the script's key.
+    user = authenticator.create_script_user(
+        api_script="toolkit_scripts",
+        api_key="09d648cbb268019edefd1db3f1a8d8ea011c354326f23f24d13c477d75306810"
+    )
+    # print "User is '%s'" % user
+
+    # Tells Toolkit which user to use for connecting to Shotgun.
+    sgtk.set_authenticated_user(user)
+    sgc = sg.create_sg_connection()
+    return sgc
+
+def update_shotgun():
+    pub_id = os.environ.get("SHOTGUN_PUBLISHED_FILE_ID")
+    sgc = get_shotgun_connection()
+    publish_file = sgc.find_one("PublishedFile",[['id', 'is', int(pub_id)]], ['project', 'sg_notes'])
+    note = {}
+    note['subject'] = 'Exported %s to %s' % (dt.datetime.now().strftime('%y/%m/%d %H:%M'),
+                                             os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(get_nuke_script())))))
+    note['content'] = report_str
+    note['project'] = publish_file['project']
+    note = sgc.create("Note", note)
+    new_data = {'sg_notes' : publish_file['sg_notes'] + [note]}
+    sgc.update("PublishedFile",int(pub_id), new_data)
 
 def check_missmatching_versions(read_nodes):
     paths = {}
@@ -81,13 +118,26 @@ def localise_path(path):
 
 
 def get_valid_read_nodes():
+    global report_str
     valid_nodes = []
     all_nodes = get_all_read_nodes()
     for node in all_nodes:
         if is_enabled(node) and matches_expected_pattern(node):
-            valid_nodes.append(node)
+            if has_missing_files(node):
+                report_str += "Missing Files: %s\n" % os.path.basename(get_read_node_path(node))
+            else:
+                valid_nodes.append(node)
     check_missmatching_versions(valid_nodes)
     return valid_nodes
+
+
+def has_missing_files(node):
+    all_files = get_source_files(node)
+    for file in all_files:
+        f = localise_path(file)
+        if not os.path.exists(f):
+            return True
+    return False
 
 
 def get_all_read_nodes():
@@ -170,11 +220,26 @@ def localise_read_node(read_node):
     path = get_read_node_path(read_node)
 
     report_str += "\n"
-    report_str += "Read path: %s\n" % path
+    report_str += "Original Filename: %s\n" % os.path.basename(path)
     source_files = get_source_files(read_node)
+    dest_files = []
     for source_file in source_files:
-        dest_file = get_dest_path(source_file)
-        copy_file(source_file, dest_file)
+        dest_files.append(get_dest_path(source_file))
+
+    report_str += "Localised filenames:\n"
+    report_str += "--> %s\n" % os.path.basename(dest_files[0])
+    if len(dest_files) != 1:
+        report_str += "...\n"
+        report_str += "--> %s\n" % os.path.basename(dest_files[-1])
+    
+    copied_files = robocopy_files(os.path.dirname(source_files[0]),
+                                   os.path.dirname(dest_files[0]),
+                                   source_files)
+
+
+
+    rename_files(copied_files, dest_files) 
+
     final_dest_path = get_dest_path(path)
     return [path, final_dest_path]
 
@@ -192,7 +257,7 @@ def get_source_files(read_node):
             files.append(path % r)
     else:
         files = [path]
-    return files
+    return files[:1]
 
 
 def is_sequence(path):
@@ -355,16 +420,16 @@ def get_lighting_parts(filename, report_check = False):
         return_dict["version"] = global_version
         if report_check:
             if element.lower() not in accepted_lighting_elements:
-                print "Lighting Element '%s' from '%s' not recognised\n" % (element, filename)
+                report_str += "Lighting Element '%s' from '%s' not recognised\n" % (element, filename)
 
             if position.lower() not in accepted_lighting_positions:
-                print "Lighting position '%s' from '%s' not recognised\n" % (position, filename)
+                report_str += "Lighting position '%s' from '%s' not recognised\n" % (position, filename)
 
             if desc and desc.lower() not in accepted_lighting_desc:
-                print "Lighting desc '%s' from '%s' not recognised\n" % (desc, filename)
+                report_str += "Lighting desc '%s' from '%s' not recognised\n" % (desc, filename)
 
             if light_pass and light_pass.lower() not in accepted_lighting_passes:
-                print "Lighting Pass '%s' from '%s' not recognised\n" % (light_pass, filename)
+                report_str += "Lighting Pass '%s' from '%s' not recognised\n" % (light_pass, filename)
         return return_dict
 
         
@@ -380,9 +445,32 @@ def get_quicktime_dest_path(path):
     return new_location
 
 
-def copy_file(source, dest):
-    global report_str
-    report_str += "--> %s\n" % os.path.basename(dest)
+def robocopy_files(source_folder, dest_folder, files):
+    if not os.path.exists(dest_folder):
+        os.makedirs(dest_folder)
+    command = ["robocopy.exe"]
+    command.append("'%s'" % source_folder)
+    command.append("'%s'" % dest_folder)
+    for f in files:
+        command.append("'%s'" % f)
+    command.append("/MT")
+    print " ".join(command)
+    copied_files = []
+    for f in files:
+        copied_files.append(os.path.join(dest_folder, os.path.basename(f)))
+    p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+    if err:
+        raise Exception(err)
+    return copied_files
+
+def rename_files(sources, dests):
+    for i in range(0, len(sources)):
+        s = sources[i]
+        d = dests[i]
+        if "clientIO" not in s: 1/0
+        if "clientIO" not in d: 1/0
+        os.rename(s, d)
 
 
 main()
