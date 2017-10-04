@@ -1,4 +1,4 @@
-*.py[cod]
+*.pyc
 out.txt
 # C extensions
 *.so

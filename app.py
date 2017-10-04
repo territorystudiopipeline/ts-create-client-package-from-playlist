@@ -183,7 +183,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
             elif self.is_nuke_script(d['copy_path']):
                 nu_path = self.copy_nk(d, output_folder, preview)
                 if nu_path:
-                    self.create_nuke_package_job(nu_path)
+                    self.create_nuke_package_job(nu_path, d['id'])
 
     def is_video(self, path):
         return os.path.splitext(path)[1].lower() in video_exts
@@ -234,21 +234,29 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
                 self.log_exception("MISSING FILE: " + str(src))
                 self.nks_missing.add(src)
 
-    def create_nuke_package_job(self, nuke_script):
+    def create_nuke_package_job(self, nuke_script, id):
         d_path = "/Applications/Thinkbox/Deadline8/Resources/deadlinecommand"
         nuke_exe = '"C:\\Program Files\\Nuke10.5v4\\Nuke10.5.exe"'
         current_folder = os.path.dirname(os.path.realpath(__file__))
         nuke_python_script = os.path.join(current_folder, "nuke_script.py")
-        nuke_python_script = nuke_python_script.replace("/Volumes/FilmShare/", "Y:\\")
+        nuke_python_script = nuke_python_script.replace("/Volumes/FilmShare/", "\\\\\\\\192.168.50.10\\\\filmshare\\\\")
         nuke_python_script = nuke_python_script.replace("/Volumes/projects/", "\\\\\\\\ldn-fs1\\\\projects\\\\")
         nuke_python_script = nuke_python_script.replace("/", "\\\\")
-        args = '-t %s' % (nuke_script)
-        job_name = "Export Nuke Script for Client: %s" % os.path.basename(nuke_script)
+
+        nuke_script = nuke_script.replace("/Volumes/FilmShare/", "\\\\\\\\192.168.50.10\\\\filmshare\\\\")
+        nuke_script = nuke_script.replace("/Volumes/projects/", "\\\\\\\\ldn-fs1\\\\projects\\\\")
+        nuke_script = nuke_script.replace("/", "\\\\")
+
+        args = '-t %s' % (nuke_python_script)
+        job_name = "Export Nuke Script for Client: %s" % nuke_script.split("\\")[-1]
         cmd = '%s -SubmitCommandLineJob' % d_path
         cmd += ' -executable %s' % nuke_exe
         cmd += ' -arguments "%s"' % args
         cmd += ' -frames 1  -prop LimitGroups=nuker -pool poola -priority 55 -name "%s"' % job_name
         cmd += ' -prop "EnvironmentKeyValue0=SCRIPT=%s"' % (nuke_script)
+        cmd += ' -prop "EnvironmentKeyValue1=SHOTGUN_PUBLISHED_FILE_ID=%s"' % (id)
+        cmd += ' -prop "EnvironmentKeyValue2=NUKE_PATH=\\\\\\\\ldn-fs1\\\\projects\\\\dng02_mae\\\\__pipeline\\\\configs\\\\nuke\\\\dotNuke_170928"'
+        cmd += ' -prop "EnvironmentKeyValue3=PYTHONPATH=\\\\\\\\ldn-fs1\\\\projects\\\\dng02_mae\\\\_shotgun\\\\install\\\\core\\\\python"'
         # print cmd
         sub.call(cmd, shell=True)
         self.nks_submitted_for_export.add(nuke_script)
