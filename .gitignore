@@ -1,5 +1,5 @@
-*.py[cod]
-
+*.pyc
+out.txt
 # C extensions
 *.so
 .DS_Store

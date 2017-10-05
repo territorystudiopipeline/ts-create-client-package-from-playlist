@@ -7,22 +7,23 @@ import sgtk.util.shotgun as sg
 from tank_vendor.shotgun_authentication import ShotgunAuthenticator
 import datetime as dt
 import filecmp
+import json
 
 new_lighting_pass_file_name = "E_%(shot)s_graphics_territory_lgt_%(element)s_%(desc)s_%(pass)s_%(version)s.%04d.%(ext)s"
 
 
-accepted_lighting_elements = ['core', 'console', 'driftlink', 'flower']
+accepted_lighting_elements = ['core', 'console', 'driftlink', 'flower', 'chevron', 'chevrons']
 
 accepted_lighting_positions = ['l', 'c', 'r']
 
-accepted_lighting_desc = ['rgba', 'lines', 'ui', 'protractor', 'text3D', 'miscUI', 'neuralNet', 'solid']
+accepted_lighting_desc = ['rgba', 'lines', 'ui', 'protractor', 'text3d', 'miscui', 'neuralnet', 'solid']
 
 accepted_lighting_passes = ['colour_passes', 'beauty', 'alpha', 'direct_diffuse',
                             'direct_specular', 'diffuse_albedo', 'indirect_diffuse',
                             'indirect_specular', 'reflection', 'refraction', 'z', 'n',
                             'refraction_opacity', 'crypto_material', 'depth', 'emission',
-                            'normals', 'p', 'pref', 'vector', 'id_1', 'id_2', 'id_3', 'id_4', 'id_5', 'id_6',
-                            'id_01', 'id_02', 'id_03', 'id_04', 'id_05', 'id_06', 'text3D']
+                            'normals', 'p', 'pref', 'vector', 'id_1', 'id_2', 'id_3', 'id_4', 'id_5', 'id_6', 'id_7', 'id_8','id_9',
+                            'id_01', 'id_02', 'id_03', 'id_04', 'id_05', 'id_06', 'id_07', 'id_08', 'id_09', 'id_10','text3d']
 
 global_version = "v000"
 
@@ -32,39 +33,45 @@ report_str = "Warnings:\n"
 def main():
     global report_str
     open_script()
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    print '?'
     read_nodes = get_valid_read_nodes()
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    for i in range(0,500): print i
-    report_str += "\nExport History:\n"
-    path_mapings = []
-    for node in read_nodes:
-        print 1, node.name()
-        print 1
-        print node['file']
-    print "_-__-__-__-_"
-    for node in read_nodes:
-        print "new mapping"
-        path_mapings.append(localise_read_node(node))
-        print "added a mapping"
-    replace_reads(path_mapings)
-    update_shotgun()
+    export_to_json(read_nodes)
+    # report_str += "\nExport History:\n"
+    # path_mapings = []
+    # for node in read_nodes:
+    # for node in read_nodes:
+    #     path_mapings.append(localise_read_node(node))
+    # replace_reads(path_mapings)
+    # update_shotgun()
+
+
+def export_to_json(nodes):
+    json_data = get_json_data(nodes)
+    json_path = os.path.join(os.path.dirname(get_nuke_script()), "valid_nodes.json")
+    with open(json_path, 'w') as outfile:
+        json.dump(json_data, outfile)
+
+
+def get_json_data(nodes):
+    json_data = {"report": report_str, "nodes":[]}
+    for node in nodes:
+        node_data = {}
+        node_data['file'] = node['file'].getValue()
+        node_data['name'] = node.fullName()
+        if node.knob('first'):
+            f = node['first'].getValue() 
+            gf = nuke.Root()['first_frame'].getValue()
+            if f <= gf:
+                f = gf
+            node_data['first'] = f
+        if node.knob('last'):
+            l = node['last'].getValue() 
+            gl = nuke.Root()['last_frame'].getValue()
+            if l >= gl:
+                l = gl
+            node_data['last'] = l
+        json_data['nodes'].append(node_data)
+    return json_data
+
 
 
 def open_script():    
@@ -80,69 +87,66 @@ def open_script():
     nuke.scriptSaveAs(nu_script)
 
 
-def replace_reads(mappings):
-    script_path = get_nuke_script()
-    nu_script = script_path[:-3]+"_localised.nk"
-    filedata = ""
-    # Read in the file
-    with open(nu_script, 'r') as file :
-      filedata = file.read()
-    for mapping in mappings:
-        # Replace the target string
-        mapping[0] = mapping[0].replace("\\","/")
-        mapping[1] = mapping[1].replace("\\","/")
-        if "ELEMENTS" in mapping[1]:
-            mapping[1] = "../ELEMENTS" + mapping[1].split("ELEMENTS")[1]
-        if "GEOM" in mapping[1]:
-            mapping[1] = "../GEOM" + mapping[1].split("GEOM")[1]
-        if "VIDREF" in mapping[1]:
-            mapping[1] = "../VIDREF" + mapping[1].split("VIDREF")[1]
-        print mapping[1]
-        filedata = filedata.replace(mapping[0], mapping[1])
-    # Write the file out again
-    with open(nu_script, 'w') as file:
-      file.write(filedata)
+# def replace_reads(mappings):
+#     script_path = get_nuke_script()
+#     nu_script = script_path[:-3]+"_localised.nk"
+#     filedata = ""
+#     # Read in the file
+#     with open(nu_script, 'r') as file :
+#       filedata = file.read()
+#     for mapping in mappings:
+#         # Replace the target string
+#         mapping[0] = mapping[0].replace("\\","/")
+#         mapping[1] = mapping[1].replace("\\","/")
+#         if "ELEMENTS" in mapping[1]:
+#             mapping[1] = "../ELEMENTS" + mapping[1].split("ELEMENTS")[1]
+#         if "GEOM" in mapping[1]:
+#             mapping[1] = "../GEOM" + mapping[1].split("GEOM")[1]
+#         if "VIDREF" in mapping[1]:
+#             mapping[1] = "../VIDREF" + mapping[1].split("VIDREF")[1]
+#         filedata = filedata.replace(mapping[0], mapping[1])
+#     # Write the file out again
+#     with open(nu_script, 'w') as file:
+#       file.write(filedata)
 
-    os.remove(get_nuke_script())
-    os.rename(nu_script, get_nuke_script())
-
+#     os.remove(get_nuke_script())
+#     os.rename(nu_script, get_nuke_script())
 
 
-def get_shotgun_connection():
-    # Instantiate the CoreDefaultsManager. This allows the ShotgunAuthenticator to
-    # retrieve the site, proxy and optional script_user credentials from shotgun.yml
-    cdm = sgtk.util.CoreDefaultsManager()
 
-    # Instantiate the authenticator object, passing in the defaults manager.
-    authenticator = ShotgunAuthenticator(cdm)
+# def get_shotgun_connection():
+#     # Instantiate the CoreDefaultsManager. This allows the ShotgunAuthenticator to
+#     # retrieve the site, proxy and optional script_user credentials from shotgun.yml
+#     cdm = sgtk.util.CoreDefaultsManager()
 
-    # Create a user programmatically using the script's key.
-    user = authenticator.create_script_user(
-        api_script="toolkit_scripts",
-        api_key="09d648cbb268019edefd1db3f1a8d8ea011c354326f23f24d13c477d75306810"
-    )
-    # print "User is '%s'" % user
+#     # Instantiate the authenticator object, passing in the defaults manager.
+#     authenticator = ShotgunAuthenticator(cdm)
 
-    # Tells Toolkit which user to use for connecting to Shotgun.
-    sgtk.set_authenticated_user(user)
-    sgc = sg.create_sg_connection()
-    return sgc
+#     # Create a user programmatically using the script's key.
+#     user = authenticator.create_script_user(
+#         api_script="toolkit_scripts",
+#         api_key="09d648cbb268019edefd1db3f1a8d8ea011c354326f23f24d13c477d75306810"
+#     )
 
-def update_shotgun():
-    pub_id = os.environ.get("SHOTGUN_PUBLISHED_FILE_ID")
-    sgc = get_shotgun_connection()
-    publish_file = sgc.find_one("PublishedFile",[['id', 'is', int(pub_id)]], ['project', 'sg_notes'])
-    note = {}
-    note['subject'] = 'Exported %s to %s' % (dt.datetime.now().strftime('%y/%m/%d %H:%M'),
-                                             os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(get_nuke_script())))))
-    note['content'] = report_str
-    note['project'] = publish_file['project']
-    note = sgc.create("Note", note)
-    new_data = {'sg_notes' : publish_file['sg_notes'] + [note]}
-    sgc.update("PublishedFile",int(pub_id), new_data)
+#     # Tells Toolkit which user to use for connecting to Shotgun.
+#     sgtk.set_authenticated_user(user)
+#     sgc = sg.create_sg_connection()
+#     return sgc
+
+# def update_shotgun():
+#     pub_id = os.environ.get("SHOTGUN_PUBLISHED_FILE_ID")
+#     sgc = get_shotgun_connection()
+#     publish_file = sgc.find_one("PublishedFile",[['id', 'is', int(pub_id)]], ['project', 'sg_notes'])
+#     note = {}
+#     note['subject'] = 'Exported %s to %s' % (dt.datetime.now().strftime('%y/%m/%d %H:%M'),
+#                                              os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(get_nuke_script())))))
+#     note['content'] = report_str
+#     note['project'] = publish_file['project']
+#     note = sgc.create("Note", note)
+#     new_data = {'sg_notes' : publish_file['sg_notes'] + [note]}
+#     sgc.update("PublishedFile",int(pub_id), new_data)
 
 def check_missmatching_versions(read_nodes):
-    # print "check_missmatching_versions"
     paths = {}
 
     for node in read_nodes:
@@ -150,7 +154,6 @@ def check_missmatching_versions(read_nodes):
         path = os.path.basename(path)
         if not is_ingest(path):
             path_without_version = get_path_without_version(path)
-            # print path, path_without_version
             if path_without_version not in paths:
                 paths[path_without_version] = {path: [node]}
             elif path in paths[path_without_version].keys():
@@ -165,7 +168,6 @@ def check_missmatching_versions(read_nodes):
                     e_str += " %s," % n.name()
                 e_str = e_str[:-1] + " %s\n" % (p)
     if e_str != "":
-        # print "x10"
         e_str = "Multiple versions of the same element are being used in this script.\n" + e_str
         raise Exception(e_str)
 
@@ -203,16 +205,13 @@ def get_valid_read_nodes():
     valid_nodes = []
     all_nodes = get_all_read_nodes()
     for node in all_nodes:
-        # print is_enabled(node), node.name(), get_read_node_path(node)
         if is_enabled(node) and matches_expected_pattern(node):
-            # print "."
             if has_missing_files(node):
-                print "Missing Files: %s\n" % os.path.basename(get_read_node_path(node))
-                report_str += "Missing Files: %s\n" % os.path.basename(get_read_node_path(node))
-            else:
-                valid_nodes.append(node)
-    #         print "0-"
-    # print "--------0"
+                r = "Missing Files: %s\n" % get_read_node_path(node)
+                print r
+                report_str += r
+            
+            valid_nodes.append(node)
     check_missmatching_versions(valid_nodes)
     return valid_nodes
 
@@ -222,18 +221,24 @@ def has_missing_files(node):
     for file in all_files:
         f = localise_path(file)
         if not os.path.exists(f):
-            # print "---d--", f
             return True
     return False
 
 
 def get_all_read_nodes():
-    classes = ["Read", "ReadGeo", "Camera"]
+    classes = ["Read", "ReadGeo", "Camera", "Camera2"]
     nodes = []
-    for node in nuke.allNodes():
-        if node.Class() in classes:
+    for node in get_all_nodes():
+        if node.Class() in classes and get_read_node_path(node).strip() != "":
             nodes.append(node)
     return nodes
+
+def get_all_nodes():
+    all_nodes = nuke.allNodes()
+    all_group_nodes = nuke.allNodes("Group")
+    for g in all_group_nodes:
+        all_nodes += nuke.allNodes(group=g)
+    return all_nodes
 
 
 def is_enabled(read_node):
@@ -256,15 +261,7 @@ def matches_expected_pattern(read_node):
         get_lighting_parts(path, report_check=True)
     if not matched:
         report_str += "Path does not match any expected patterns: %s\n" % path
-        report_str += "Patterns:\n"
-        report_str += "*\\ingest\\*\n"
-        report_str += "*_comp_*\n"
-        report_str += "*_precomp_*\n"
-        report_str += "*_lgt_*\n"
-        report_str += "*_cameratrack_*\n"
-        report_str += "*_lod[1-6]00_*\n"
-        report_str += "*.mov\n"
-        report_str += "\n"
+
 
 
     return path.startswith("..") == False
@@ -319,41 +316,32 @@ def is_precomp(path):
 
 def localise_read_node(read_node):
     global report_str
-    print "Start localise for %s" % get_read_node_path(read_node)
     path = get_read_node_path(read_node)
 
     r = "\n"
     r += "%s\n" % read_node.name()
     r += "Localised range: %d-%d\n" % (read_node['first'].getValue(), read_node['last'].getValue())
     report_str += r
-    print r
 
     source_files = get_source_files(read_node)
     dest_files = []
-    print "get source paths for %d files" % len(source_files) 
     for source_file in source_files:
         dest_files.append(get_dest_path(source_file))
-    print "got dest paths for %d files" % len(dest_files) 
     
     source_files, dest_files = filter_already_existing(source_files, dest_files)
-    print "1"
     if len(source_files):
-        print "2"
         copied_files = robocopy_files(os.path.dirname(source_files[0]),
                                        os.path.dirname(dest_files[0]),
                                        source_files)
-        print "3"
 
 
         rename_files(copied_files, dest_files) 
         
-    print "4"
     final_dest_path = get_dest_path(path)
     r = "Localised filenames renamed from/to:\n"
     r += "%s\n" % os.path.basename(path)
     r += "-->\n"
     r += "%s\n" % os.path.basename(final_dest_path)
-    print r
     report_str += r
     return [path, final_dest_path]
 
@@ -388,14 +376,12 @@ def get_source_files(read_node):
     if "####" in path: path = path.replace("####", "%04d")
     if "###" in path: path = path.replace("###", "%03d")
     if is_sequence(path):
-        # print "YES"
 
         for r in range(int(read_node['first'].getValue()),
                        int(read_node['last'].getValue())):
 
             files.append(path % r)
     else:
-        # print "NO"
         files = [path]
     return files
 
@@ -588,9 +574,9 @@ def get_lighting_parts(path, report_check = False):
     regex_str += "([a-zA-Z0-9]*)"  # element
     regex_str += "[-._]?"
     regex_str += "([a-zA-Z]?)"  # position
-    regex_str += "[-._]?"
-    regex_str += "([a-zA-Z0-9]*)"  # lighting dec
     regex_str += "[-._]"
+    regex_str += "([a-zA-Z0-9]*)"  # lighting dec
+    regex_str += "[-._]?"
     regex_str += "v[0-9]+"
     regex_str += "[-._]?[_]?"
     regex_str += "([a-zA-Z0-9_-]*)"  # lighting pass
@@ -646,32 +632,21 @@ def get_quicktime_dest_path(path):
 
 
 def robocopy_files(source_folder, dest_folder, files):
-    print 10
     if not os.path.exists(dest_folder):
         os.makedirs(dest_folder)
-    print 11
 
     command = ["robocopy.exe"]
     command.append("%s" % source_folder)
     command.append("%s" % dest_folder)
-    print 111
     for f in files:
         command.append("%s" % os.path.basename(f))
-    print 112
     command.append("/MT")
-    print 1121 
-    print 1122
     copied_files = []
-    print 113
     
     for f in files:
         copied_files.append(os.path.join(dest_folder, os.path.basename(f)))
-    print 12
     p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    print 13
     out, err = p.communicate()
-    print out
-    print err
     if err:
         raise Exception(err)
     return copied_files
@@ -684,15 +659,10 @@ def rename_files(sources, dests):
             return
         if "client_io" not in s: 1/0
         if "client_io" not in d: 1/0
-        print s, ">>>", d 
         if os.path.exists(d):
-            print "FILE EXISTS"
             if filecmp.cmp(s,d):
-                print "DELETE IT"
                 os.remove(s)
-                print "I DELETED IT"
             else:
-                print "DONT DELETE IT"
                 raise Exception("Cannot rename beacuse another file already exists: %s" % d)
         else:
             os.rename(s, d)

@@ -1,4 +1,4 @@
-import nuke
+import json
 import os
 import re
 import sgtk
@@ -7,6 +7,8 @@ import sgtk.util.shotgun as sg
 from tank_vendor.shotgun_authentication import ShotgunAuthenticator
 import datetime as dt
 import filecmp
+from shutil import copyfile
+
 
 new_lighting_pass_file_name = "E_%(shot)s_graphics_territory_lgt_%(element)s_%(desc)s_%(pass)s_%(version)s.%04d.%(ext)s"
 
@@ -15,14 +17,14 @@ accepted_lighting_elements = ['core', 'console', 'driftlink', 'flower']
 
 accepted_lighting_positions = ['l', 'c', 'r']
 
-accepted_lighting_desc = ['rgba', 'lines', 'ui', 'protractor', 'text3D', 'miscUI', 'neuralNet', 'solid']
+accepted_lighting_desc = ['rgba', 'lines', 'ui', 'protractor', 'text3d', 'miscUI', 'neuralNet', 'solid']
 
 accepted_lighting_passes = ['colour_passes', 'beauty', 'alpha', 'direct_diffuse',
-                            'direct_specular', 'diffuse_albedo', 'indirect_diffuse',
-                            'indirect_specular', 'reflection', 'refraction', 'z', 'n',
+                            'direct_specular', 'diffuse_albedo', 'indirect_diffuse', 'ambient',
+                            'indirect_specular', 'reflection', 'refraction', 'z', 'n', 'rgba',
                             'refraction_opacity', 'crypto_material', 'depth', 'emission',
                             'normals', 'p', 'pref', 'vector', 'id_1', 'id_2', 'id_3', 'id_4', 'id_5', 'id_6',
-                            'id_01', 'id_02', 'id_03', 'id_04', 'id_05', 'id_06', 'text3D']
+                            'id_01', 'id_02', 'id_03', 'id_04', 'id_05', 'id_06', 'text3d']
 
 global_version = "v000"
 
@@ -31,53 +33,19 @@ report_str = "Warnings:\n"
 
 def main():
     global report_str
-    open_script()
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    read_nodes = get_valid_read_nodes()
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    for i in range(0,500): print i
-    report_str += "\nExport History:\n"
-    path_mapings = []
-    for node in read_nodes:
-        print 1, node.name()
-        print 1
-        print node['file']
-    print "_-__-__-__-_"
-    for node in read_nodes:
-        print "new mapping"
-        path_mapings.append(localise_read_node(node))
-        print "added a mapping"
-    replace_reads(path_mapings)
-    update_shotgun()
-
-
-def open_script():    
     global global_version
     script = get_nuke_script()
     global_version = get_version_str(script)
-    nuke.scriptOpen(script)
-    s = nuke.root()
-    s.knob('project_directory').setValue("[python {nuke.script_directory()}]")
-    nu_script = script[:-3]+"_localised.nk"
-    if os.path.exists(nu_script):
-        os.remove(nu_script)
-    nuke.scriptSaveAs(nu_script)
+    read_nodes = get_valid_read_nodes()
+    report_str += "\nExport History:\n"
+    path_mapings = []
+    i = 1
+    for node in read_nodes:
+        path_mapings.append(localise_read_node(node))
+        i += 1
+        print "%d/%d\n\n" % (i, len(read_nodes)) 
+    replace_reads(path_mapings)
+    update_shotgun()
 
 
 def replace_reads(mappings):
@@ -97,13 +65,26 @@ def replace_reads(mappings):
             mapping[1] = "../GEOM" + mapping[1].split("GEOM")[1]
         if "VIDREF" in mapping[1]:
             mapping[1] = "../VIDREF" + mapping[1].split("VIDREF")[1]
-        print mapping[1]
+
+
+        mapping[0] = mapping[0].replace("######", "%06d")
+        mapping[0] = mapping[0].replace("#####", "%05d")
+        mapping[0] = mapping[0].replace("####", "%04d")
+        mapping[0] = mapping[0].replace("###", "%03d")
+        filedata = filedata.replace(mapping[0], mapping[1])
+
+        mapping[0] = mapping[0].replace("%06d", "######")
+        mapping[0] = mapping[0].replace("%05d", "#####")
+        mapping[0] = mapping[0].replace("%04d", "####")
+        mapping[0] = mapping[0].replace("%03d", "###")
         filedata = filedata.replace(mapping[0], mapping[1])
     # Write the file out again
     with open(nu_script, 'w') as file:
       file.write(filedata)
 
+
     os.remove(get_nuke_script())
+    os.remove(get_json_path())
     os.rename(nu_script, get_nuke_script())
 
 
@@ -162,7 +143,7 @@ def check_missmatching_versions(read_nodes):
         if len(paths[path]) != 1:
             for p in paths[path]:
                 for n in paths[path][p]:
-                    e_str += " %s," % n.name()
+                    e_str += " %s," % n['name']
                 e_str = e_str[:-1] + " %s\n" % (p)
     if e_str != "":
         # print "x10"
@@ -198,23 +179,22 @@ def localise_path(path):
     return path
 
 
+def get_json_data():
+    json_path = get_json_path()
+    
+    data = None
+    with open(json_path) as data_file:    
+        data = json.load(data_file)
+    return data
+
+def get_json_path():
+    return os.path.join(os.path.dirname(get_nuke_script()), "valid_nodes.json")
+
 def get_valid_read_nodes():
     global report_str
-    valid_nodes = []
-    all_nodes = get_all_read_nodes()
-    for node in all_nodes:
-        # print is_enabled(node), node.name(), get_read_node_path(node)
-        if is_enabled(node) and matches_expected_pattern(node):
-            # print "."
-            if has_missing_files(node):
-                print "Missing Files: %s\n" % os.path.basename(get_read_node_path(node))
-                report_str += "Missing Files: %s\n" % os.path.basename(get_read_node_path(node))
-            else:
-                valid_nodes.append(node)
-    #         print "0-"
-    # print "--------0"
-    check_missmatching_versions(valid_nodes)
-    return valid_nodes
+    data = get_json_data()
+    report_str += data['report']
+    return data['nodes']
 
 
 def has_missing_files(node):
@@ -227,17 +207,8 @@ def has_missing_files(node):
     return False
 
 
-def get_all_read_nodes():
-    classes = ["Read", "ReadGeo", "Camera"]
-    nodes = []
-    for node in nuke.allNodes():
-        if node.Class() in classes:
-            nodes.append(node)
-    return nodes
-
-
 def is_enabled(read_node):
-    return read_node['disable'].getValue() == 0
+    return read_node['disable'] == 0
 
 
 def matches_expected_pattern(read_node):
@@ -323,39 +294,36 @@ def localise_read_node(read_node):
     path = get_read_node_path(read_node)
 
     r = "\n"
-    r += "%s\n" % read_node.name()
-    r += "Localised range: %d-%d\n" % (read_node['first'].getValue(), read_node['last'].getValue())
-    report_str += r
-    print r
+    r += "%s\n" % read_node['name']
+    if read_node.get('first') and read_node.get('last'):
+        r += "Localised range: %d-%d\n" % (read_node['first'], read_node['last'])
+    
 
     source_files = get_source_files(read_node)
     dest_files = []
-    print "get source paths for %d files" % len(source_files) 
     for source_file in source_files:
         dest_files.append(get_dest_path(source_file))
-    print "got dest paths for %d files" % len(dest_files) 
     
     source_files, dest_files = filter_already_existing(source_files, dest_files)
-    print "1"
     if len(source_files):
-        print "2"
-        copied_files = robocopy_files(os.path.dirname(source_files[0]),
-                                       os.path.dirname(dest_files[0]),
-                                       source_files)
-        print "3"
+        basic_copy(source_files, dest_files)
+        # copied_files = robocopy_files(os.path.dirname(source_files[0]),
+        #                                os.path.dirname(dest_files[0]),
+        #                                source_files)
 
 
-        rename_files(copied_files, dest_files) 
+        # rename_files(copied_files, dest_files) 
         
-    print "4"
     final_dest_path = get_dest_path(path)
-    r = "Localised filenames renamed from/to:\n"
+    r += "Localised filenames renamed from/to:\n"
     r += "%s\n" % os.path.basename(path)
     r += "-->\n"
     r += "%s\n" % os.path.basename(final_dest_path)
-    print r
     report_str += r
+    print r
     return [path, final_dest_path]
+
+
 
 
 def filter_already_existing(source_files, dest_files):
@@ -375,14 +343,15 @@ def filter_already_existing(source_files, dest_files):
 
 
 def get_read_node_path(read_node):
-    p = read_node['file'].getValue()
+    p = read_node['file']
     p = localise_path(p)
     return p
 
 
 def get_source_files(read_node):
     files = []
-    path = get_read_node_path(read_node)
+    orig_path = get_read_node_path(read_node)
+    path = orig_path
     if "######" in path: path = path.replace("######", "%06d")
     if "#####" in path: path = path.replace("#####", "%05d")
     if "####" in path: path = path.replace("####", "%04d")
@@ -390,13 +359,12 @@ def get_source_files(read_node):
     if is_sequence(path):
         # print "YES"
 
-        for r in range(int(read_node['first'].getValue()),
-                       int(read_node['last'].getValue())):
+        for r in range(int(read_node['first']), int(read_node['last'])):
 
             files.append(path % r)
     else:
         # print "NO"
-        files = [path]
+        files = [orig_path]
     return files
 
 
@@ -528,7 +496,7 @@ def camelcase_string(s):
 
 def get_ext_and_frame(path):
     frame = None
-    regex = re.compile(".*[._-](\d+)\.[^.]+$", re.IGNORECASE)
+    regex = re.compile(".*[._-](\d+|#+|%\d+d)\.[^.]+$", re.IGNORECASE)
     frame_search = re.search(regex, path)
     if frame_search and len(frame_search.groups()) == 1:
         frame = frame_search.group(1)
@@ -644,31 +612,74 @@ def get_quicktime_dest_path(path):
     new_location = os.path.join("VIDREF", filename)
     return new_location
 
-
-def robocopy_files(source_folder, dest_folder, files):
-    print 10
+def basic_copy(sources, dests):
+    dest_folder = os.path.dirname(dests[0])
     if not os.path.exists(dest_folder):
         os.makedirs(dest_folder)
-    print 11
+    for i in range(0, len(sources)):
+        s = sources[i]
+        d = dests[i]
+        if "client_io" not in d: raise Exception("You are exporting outside of the client_io folder. What?")
+        if os.path.exists(s) and not os.path.exists(d):
+            print os.path.basename(s), "-->", os.path.basename(d)
+            copyfile(s, d)
+
+def robocopy_files(source_folder, dest_folder, files):
+
+    print dest_folder
+    print dest_folder
+    print dest_folder
+    print dest_folder
+    print dest_folder
+    print os.path.exists(dest_folder)
+    print os.path.exists(dest_folder)
+    print os.path.exists(dest_folder)
+    print os.path.exists(dest_folder)
+    print os.path.exists(dest_folder)
+    print os.path.exists(dest_folder)
+
+    print os.path.isdir(dest_folder)
+    print os.path.isdir(dest_folder)
+    print os.path.isdir(dest_folder)
+    print os.path.isdir(dest_folder)
+    print os.path.isdir(dest_folder)
+    print os.path.isdir(dest_folder)
+
+    if not os.path.exists(dest_folder):
+        os.makedirs(dest_folder)
+
+    print dest_folder
+    print dest_folder
+    print dest_folder
+    print dest_folder
+    print dest_folder
+    print os.path.exists(dest_folder)
+    print os.path.exists(dest_folder)
+    print os.path.exists(dest_folder)
+    print os.path.exists(dest_folder)
+    print os.path.exists(dest_folder)
+    print os.path.exists(dest_folder)
+
+    print os.path.isdir(dest_folder)
+    print os.path.isdir(dest_folder)
+    print os.path.isdir(dest_folder)
+    print os.path.isdir(dest_folder)
+    print os.path.isdir(dest_folder)
+    print os.path.isdir(dest_folder)
+
 
     command = ["robocopy.exe"]
     command.append("%s" % source_folder)
     command.append("%s" % dest_folder)
-    print 111
     for f in files:
         command.append("%s" % os.path.basename(f))
-    print 112
     command.append("/MT")
-    print 1121 
-    print 1122
     copied_files = []
-    print 113
     
     for f in files:
         copied_files.append(os.path.join(dest_folder, os.path.basename(f)))
-    print 12
-    p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    print 13
+    print " ".join(command)
+    p = subprocess.Popen(command)
     out, err = p.communicate()
     print out
     print err

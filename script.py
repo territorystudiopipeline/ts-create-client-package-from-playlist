@@ -1,4 +1,3 @@
-import nuke
 import os
 import re
 import sgtk
@@ -32,37 +31,11 @@ report_str = "Warnings:\n"
 def main():
     global report_str
     open_script()
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    print '?'
-    read_nodes = get_valid_read_nodes()
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    print len(read_nodes)
-    for i in range(0,500): print i
+    paths = get_valid_paths()
     report_str += "\nExport History:\n"
     path_mapings = []
-    for node in read_nodes:
-        print 1, node.name()
-        print 1
-        print node['file']
-    print "_-__-__-__-_"
-    for node in read_nodes:
-        print "new mapping"
-        path_mapings.append(localise_read_node(node))
-        print "added a mapping"
+    for path in paths:
+        path_mapings.append(localise_files_to_playlist_folder(path))
     replace_reads(path_mapings)
     update_shotgun()
 
@@ -97,7 +70,6 @@ def replace_reads(mappings):
             mapping[1] = "../GEOM" + mapping[1].split("GEOM")[1]
         if "VIDREF" in mapping[1]:
             mapping[1] = "../VIDREF" + mapping[1].split("VIDREF")[1]
-        print mapping[1]
         filedata = filedata.replace(mapping[0], mapping[1])
     # Write the file out again
     with open(nu_script, 'w') as file:
@@ -141,31 +113,27 @@ def update_shotgun():
     new_data = {'sg_notes' : publish_file['sg_notes'] + [note]}
     sgc.update("PublishedFile",int(pub_id), new_data)
 
-def check_missmatching_versions(read_nodes):
+def check_missmatching_versions(paths):
     # print "check_missmatching_versions"
-    paths = {}
+    paths_without_version = {}
 
-    for node in read_nodes:
-        path = get_read_node_path(node)
-        path = os.path.basename(path)
+    for path in paths:
+        filename = os.path.basename(path)
         if not is_ingest(path):
             path_without_version = get_path_without_version(path)
             # print path, path_without_version
-            if path_without_version not in paths:
-                paths[path_without_version] = {path: [node]}
-            elif path in paths[path_without_version].keys():
-                paths[path_without_version][path].append(node)
+            if path_without_version not in paths_without_version:
+                paths_without_version[path_without_version] = {filename: 1}
+            elif path in paths_without_version[path_without_version].keys():
+                paths_without_version[path_without_version][path] += 1
             else:
-                paths[path_without_version][path] = [node]
+                paths_without_version[path_without_version][path] = [node]
     e_str = ""
-    for path in paths.keys():
-        if len(paths[path]) != 1:
-            for p in paths[path]:
-                for n in paths[path][p]:
-                    e_str += " %s," % n.name()
+    for path_without_version in paths_without_version.keys():
+        if len(paths_without_version[path_without_version]) != 1:
+            for p in paths_without_version[path_without_version]:
                 e_str = e_str[:-1] + " %s\n" % (p)
     if e_str != "":
-        # print "x10"
         e_str = "Multiple versions of the same element are being used in this script.\n" + e_str
         raise Exception(e_str)
 
@@ -198,51 +166,50 @@ def localise_path(path):
     return path
 
 
-def get_valid_read_nodes():
+def get_valid_paths():
     global report_str
-    valid_nodes = []
-    all_nodes = get_all_read_nodes()
-    for node in all_nodes:
-        # print is_enabled(node), node.name(), get_read_node_path(node)
-        if is_enabled(node) and matches_expected_pattern(node):
-            # print "."
-            if has_missing_files(node):
-                print "Missing Files: %s\n" % os.path.basename(get_read_node_path(node))
-                report_str += "Missing Files: %s\n" % os.path.basename(get_read_node_path(node))
+    valid_paths = []
+    all_paths = get_all_paths()
+    for path in all_paths:
+        if matches_expected_pattern(path):
+            if has_missing_files(path):
+                print "Missing Files: %s\n" % os.path.basename(path)
+                report_str += "Missing Files: %s\n" % os.path.basename(path)
             else:
-                valid_nodes.append(node)
-    #         print "0-"
-    # print "--------0"
-    check_missmatching_versions(valid_nodes)
-    return valid_nodes
+                valid_paths.append(path)
+    check_missmatching_versions(valid_paths)
+    return valid_paths
 
 
-def has_missing_files(node):
-    all_files = get_source_files(node)
+def has_missing_files(path):
+    all_files = get_source_files(path)
     for file in all_files:
         f = localise_path(file)
         if not os.path.exists(f):
-            # print "---d--", f
             return True
     return False
 
 
-def get_all_read_nodes():
-    classes = ["Read", "ReadGeo", "Camera"]
-    nodes = []
-    for node in nuke.allNodes():
-        if node.Class() in classes:
-            nodes.append(node)
-    return nodes
+def get_all_paths():
+    path_expression = "^([ ]*file .*)$"
+    paths = []
+    with open(get_nuke_script(), 'r') as file :
+      filedata = file.read()
+    lines_of_file = filedata.split("\\n")
+    paths = []
+    for line in lines_of_file:
+        if re.match(path_expression, line):
+            path = line.split["file"][1].strip()
+            paths.append(path)
+    return paths
 
 
 def is_enabled(read_node):
     return read_node['disable'].getValue() == 0
 
 
-def matches_expected_pattern(read_node):
+def matches_expected_pattern(path):
     global report_str
-    path = get_read_node_path(read_node)
 
     matched = (is_ingest(path) or
                is_comp(path) or
@@ -317,43 +284,34 @@ def is_precomp(path):
     return "_precomp_" in os.path.basename(path).lower()
 
 
-def localise_read_node(read_node):
+def localise_files_to_playlist_folder(path):
     global report_str
     print "Start localise for %s" % get_read_node_path(read_node)
-    path = get_read_node_path(read_node)
 
     r = "\n"
-    r += "%s\n" % read_node.name()
     r += "Localised range: %d-%d\n" % (read_node['first'].getValue(), read_node['last'].getValue())
     report_str += r
     print r
 
     source_files = get_source_files(read_node)
     dest_files = []
-    print "get source paths for %d files" % len(source_files) 
     for source_file in source_files:
         dest_files.append(get_dest_path(source_file))
-    print "got dest paths for %d files" % len(dest_files) 
     
     source_files, dest_files = filter_already_existing(source_files, dest_files)
-    print "1"
     if len(source_files):
-        print "2"
         copied_files = robocopy_files(os.path.dirname(source_files[0]),
                                        os.path.dirname(dest_files[0]),
                                        source_files)
-        print "3"
 
 
         rename_files(copied_files, dest_files) 
         
-    print "4"
     final_dest_path = get_dest_path(path)
     r = "Localised filenames renamed from/to:\n"
     r += "%s\n" % os.path.basename(path)
     r += "-->\n"
     r += "%s\n" % os.path.basename(final_dest_path)
-    print r
     report_str += r
     return [path, final_dest_path]
 
@@ -374,28 +332,18 @@ def filter_already_existing(source_files, dest_files):
     return ss, dd
 
 
-def get_read_node_path(read_node):
-    p = read_node['file'].getValue()
-    p = localise_path(p)
-    return p
-
-
-def get_source_files(read_node):
+def get_source_files(path):
     files = []
-    path = get_read_node_path(read_node)
     if "######" in path: path = path.replace("######", "%06d")
     if "#####" in path: path = path.replace("#####", "%05d")
     if "####" in path: path = path.replace("####", "%04d")
     if "###" in path: path = path.replace("###", "%03d")
     if is_sequence(path):
-        # print "YES"
-
         for r in range(int(read_node['first'].getValue()),
                        int(read_node['last'].getValue())):
 
             files.append(path % r)
     else:
-        # print "NO"
         files = [path]
     return files
 
@@ -646,32 +594,21 @@ def get_quicktime_dest_path(path):
 
 
 def robocopy_files(source_folder, dest_folder, files):
-    print 10
     if not os.path.exists(dest_folder):
         os.makedirs(dest_folder)
-    print 11
 
     command = ["robocopy.exe"]
     command.append("%s" % source_folder)
     command.append("%s" % dest_folder)
-    print 111
     for f in files:
         command.append("%s" % os.path.basename(f))
-    print 112
     command.append("/MT")
-    print 1121 
-    print 1122
     copied_files = []
-    print 113
     
     for f in files:
         copied_files.append(os.path.join(dest_folder, os.path.basename(f)))
-    print 12
     p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    print 13
     out, err = p.communicate()
-    print out
-    print err
     if err:
         raise Exception(err)
     return copied_files
@@ -684,18 +621,13 @@ def rename_files(sources, dests):
             return
         if "client_io" not in s: 1/0
         if "client_io" not in d: 1/0
-        print s, ">>>", d 
+        print os.path.basename(s), ">>>", os.path.basename(d) 
         if os.path.exists(d):
-            print "FILE EXISTS"
             if filecmp.cmp(s,d):
-                print "DELETE IT"
                 os.remove(s)
-                print "I DELETED IT"
             else:
-                print "DONT DELETE IT"
                 raise Exception("Cannot rename beacuse another file already exists: %s" % d)
         else:
             os.rename(s, d)
-
 
 main()
