@@ -212,7 +212,7 @@ def get_valid_read_nodes():
                 report_str += r
             
             valid_nodes.append(node)
-    check_missmatching_versions(valid_nodes)
+    # check_missmatching_versions(valid_nodes)
     return valid_nodes
 
 

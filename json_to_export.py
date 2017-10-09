@@ -508,10 +508,10 @@ def get_ext_and_frame(path):
 
 
 def get_rename_version_str(path):
-    if is_ingest(path):
-        return get_version_str(path)
-    else:
-        return global_version
+    # if is_ingest(path):
+    return get_version_str(path)
+    # else:
+    #     return global_version
 
 
 def get_version_str(path):

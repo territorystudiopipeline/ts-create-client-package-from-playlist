@@ -59,16 +59,16 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         self.engine.register_command(
             "createClientPackage", self.create_client_package, p)
 
-        p = {
-            "title": "(Testing) Preview Create Client package",
+        # p = {
+        #     "title": "(Testing) Preview Create Client package",
 
-            "deny_permissions": deny_permissions,
-            "deny_platforms": deny_platforms,
-            "supports_multiple_selection": False
-        }
+        #     "deny_permissions": deny_permissions,
+        #     "deny_platforms": deny_platforms,
+        #     "supports_multiple_selection": False
+        # }
 
-        self.engine.register_command(
-            "previewCreateClientPackage", self.create_client_package_preview, p)
+        # self.engine.register_command(
+        #     "previewCreateClientPackage", self.create_client_package_preview, p)
 
     def returnVersionNumberIntFromStringOrNone(self, fileString):
         regex = "_[vV]\d+"
@@ -253,7 +253,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         cmd = '%s -SubmitCommandLineJob' % d_path
         cmd += ' -executable %s' % python_exe
         cmd += ' -arguments "%s"' % args
-        cmd += ' -frames 1  -prop LimitGroups=nuker -pool poola -priority 55 -name "%s"' % job_name
+        cmd += ' -frames 1 -pool pipeline -priority 55 -name "%s"' % job_name
         cmd += ' -prop JobDependencies=%s' % (previous_job_id)
         cmd += ' -prop "EnvironmentKeyValue0=SCRIPT=%s"' % (nuke_script)
         cmd += ' -prop "EnvironmentKeyValue1=SHOTGUN_PUBLISHED_FILE_ID=%s"' % (id)
@@ -282,7 +282,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         cmd = '%s -SubmitCommandLineJob' % d_path
         cmd += ' -executable %s' % nuke_exe
         cmd += ' -arguments "%s"' % args
-        cmd += ' -frames 1  -prop LimitGroups=nuker -pool poola -priority 55 -name "%s"' % job_name
+        cmd += ' -frames 1  -prop LimitGroups=nuker -pool pipeline -priority 55 -name "%s"' % job_name
         cmd += ' -prop "EnvironmentKeyValue0=SCRIPT=%s"' % (nuke_script)
         cmd += ' -prop "EnvironmentKeyValue1=SHOTGUN_PUBLISHED_FILE_ID=%s"' % (id)
         cmd += ' -prop "EnvironmentKeyValue2=NUKE_PATH=\\\\\\\\ldn-fs1\\\\projects\\\\dng02_mae\\\\__pipeline\\\\configs\\\\nuke\\\\dotNuke_170928"'
