@@ -43,22 +43,22 @@ def main():
     for node in read_nodes:
         path_mapings.append(localise_read_node(node))
         i += 1
-        print "%d/%d\n\n" % (i, len(read_nodes)) 
+        print "%d/%d\n\n" % (i, len(read_nodes))
     replace_reads(path_mapings)
     update_shotgun()
 
 
 def replace_reads(mappings):
     script_path = get_nuke_script()
-    nu_script = script_path[:-3]+"_localised.nk"
+    nu_script = script_path[:-3] + "_localised.nk"
     filedata = ""
     # Read in the file
-    with open(nu_script, 'r') as file :
-      filedata = file.read()
+    with open(nu_script, 'r') as file:
+        filedata = file.read()
     for mapping in mappings:
         # Replace the target string
-        mapping[0] = mapping[0].replace("\\","/")
-        mapping[1] = mapping[1].replace("\\","/")
+        mapping[0] = mapping[0].replace("\\", "/")
+        mapping[1] = mapping[1].replace("\\", "/")
         if "ELEMENTS" in mapping[1]:
             mapping[1] = "../ELEMENTS" + mapping[1].split("ELEMENTS")[1]
         if "GEOM" in mapping[1]:
@@ -66,27 +66,45 @@ def replace_reads(mappings):
         if "VIDREF" in mapping[1]:
             mapping[1] = "../VIDREF" + mapping[1].split("VIDREF")[1]
 
-
+        mapping[0] = mapping[0].replace("Y:", "//ldn-fs1/projects")
         mapping[0] = mapping[0].replace("######", "%06d")
         mapping[0] = mapping[0].replace("#####", "%05d")
         mapping[0] = mapping[0].replace("####", "%04d")
         mapping[0] = mapping[0].replace("###", "%03d")
         filedata = filedata.replace(mapping[0], mapping[1])
+        print "REPLACE", mapping[0], mapping[1]
 
+        mapping[0] = mapping[0].replace("Y:", "//ldn-fs1/projects")
         mapping[0] = mapping[0].replace("%06d", "######")
         mapping[0] = mapping[0].replace("%05d", "#####")
         mapping[0] = mapping[0].replace("%04d", "####")
         mapping[0] = mapping[0].replace("%03d", "###")
         filedata = filedata.replace(mapping[0], mapping[1])
+        print "REPLACE", mapping[0], mapping[1]
+
+        mapping[0] = mapping[0].replace("//ldn-fs1/projects", "Y:")
+        mapping[0] = mapping[0].replace("######", "%06d")
+        mapping[0] = mapping[0].replace("#####", "%05d")
+        mapping[0] = mapping[0].replace("####", "%04d")
+        mapping[0] = mapping[0].replace("###", "%03d")
+        filedata = filedata.replace(mapping[0], mapping[1])
+        print "REPLACE", mapping[0], mapping[1]
+
+        mapping[0] = mapping[0].replace("//ldn-fs1/projects", "Y:")
+        mapping[0] = mapping[0].replace("%06d", "######")
+        mapping[0] = mapping[0].replace("%05d", "#####")
+        mapping[0] = mapping[0].replace("%04d", "####")
+        mapping[0] = mapping[0].replace("%03d", "###")
+        filedata = filedata.replace(mapping[0], mapping[1])
+        print "REPLACE", mapping[0], mapping[1]
+
     # Write the file out again
     with open(nu_script, 'w') as file:
-      file.write(filedata)
-
+        file.write(filedata)
 
     os.remove(get_nuke_script())
     os.remove(get_json_path())
     os.rename(nu_script, get_nuke_script())
-
 
 
 def get_shotgun_connection():
@@ -109,18 +127,20 @@ def get_shotgun_connection():
     sgc = sg.create_sg_connection()
     return sgc
 
+
 def update_shotgun():
     pub_id = os.environ.get("SHOTGUN_PUBLISHED_FILE_ID")
     sgc = get_shotgun_connection()
-    publish_file = sgc.find_one("PublishedFile",[['id', 'is', int(pub_id)]], ['project', 'sg_notes'])
+    publish_file = sgc.find_one("PublishedFile", [['id', 'is', int(pub_id)]], ['project', 'sg_notes'])
     note = {}
     note['subject'] = 'Exported %s to %s' % (dt.datetime.now().strftime('%y/%m/%d %H:%M'),
                                              os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(get_nuke_script())))))
     note['content'] = report_str
     note['project'] = publish_file['project']
     note = sgc.create("Note", note)
-    new_data = {'sg_notes' : publish_file['sg_notes'] + [note]}
-    sgc.update("PublishedFile",int(pub_id), new_data)
+    new_data = {'sg_notes': publish_file['sg_notes'] + [note]}
+    sgc.update("PublishedFile", int(pub_id), new_data)
+
 
 def check_missmatching_versions(read_nodes):
     # print "check_missmatching_versions"
@@ -151,8 +171,6 @@ def check_missmatching_versions(read_nodes):
         raise Exception(e_str)
 
 
-
-
 def get_path_without_version(path):
     regex = re.compile("(.*)(v[0-9]+)(.*$)", re.IGNORECASE)
     search = re.search(regex, path)
@@ -174,21 +192,24 @@ def localise_path(path):
         path = path.replace("//ldn-fs1/projects/", "/Volumes/projects/")
     else:
         path = path.replace("/", "\\")
-        path = path.replace("\\\\Volumes\\\\Filmshare", "\\\\\\\\192.168.50.10\\\\filmshare\\\\")
-        path = path.replace("\\\\Volumes\\\\projects", "\\\\\\\\ldn-fs1\\\\projects\\\\")
+        path = path.replace("Y:", "\\\\ldn-fs1\\projects")
+        path = path.replace("\\Volumes\\Filmshare", "\\\\192.168.50.10\\filmshare\\")
+        path = path.replace("\\Volumes\\projects", "\\\\ldn-fs1\\projects\\")
     return path
 
 
 def get_json_data():
     json_path = get_json_path()
-    
+
     data = None
-    with open(json_path) as data_file:    
+    with open(json_path) as data_file:
         data = json.load(data_file)
     return data
 
+
 def get_json_path():
     return os.path.join(os.path.dirname(get_nuke_script()), "valid_nodes.json")
+
 
 def get_valid_read_nodes():
     global report_str
@@ -223,7 +244,7 @@ def matches_expected_pattern(read_node):
                is_camera(path) or
                is_geo(path))
     if is_lighting(path):
-        #report on validity
+        # report on validity
         get_lighting_parts(path, report_check=True)
     if not matched:
         report_str += "Path does not match any expected patterns: %s\n" % path
@@ -236,7 +257,6 @@ def matches_expected_pattern(read_node):
         report_str += "*_lod[1-6]00_*\n"
         report_str += "*.mov\n"
         report_str += "\n"
-
 
     return path.startswith("..") == False
 
@@ -297,13 +317,12 @@ def localise_read_node(read_node):
     r += "%s\n" % read_node['name']
     if read_node.get('first') and read_node.get('last'):
         r += "Localised range: %d-%d\n" % (read_node['first'], read_node['last'])
-    
 
     source_files = get_source_files(read_node)
     dest_files = []
     for source_file in source_files:
         dest_files.append(get_dest_path(source_file))
-    
+
     source_files, dest_files = filter_already_existing(source_files, dest_files)
     if len(source_files):
         basic_copy(source_files, dest_files)
@@ -311,9 +330,8 @@ def localise_read_node(read_node):
         #                                os.path.dirname(dest_files[0]),
         #                                source_files)
 
+        # rename_files(copied_files, dest_files)
 
-        # rename_files(copied_files, dest_files) 
-        
     final_dest_path = get_dest_path(path)
     r += "Localised filenames renamed from/to:\n"
     r += "%s\n" % os.path.basename(path)
@@ -324,16 +342,14 @@ def localise_read_node(read_node):
     return [path, final_dest_path]
 
 
-
-
 def filter_already_existing(source_files, dest_files):
     ss = []
     dd = []
-    for i in range(0,len(source_files)):
+    for i in range(0, len(source_files)):
         s = source_files[i]
         d = dest_files[i]
-        if os.path.exists(d):
-            if not filecmp.cmp(s,d):
+        if os.path.exists(s) and os.path.exists(d):
+            if not filecmp.cmp(s, d):
                 ss.append(s)
                 dd.append(d)
         else:
@@ -352,10 +368,14 @@ def get_source_files(read_node):
     files = []
     orig_path = get_read_node_path(read_node)
     path = orig_path
-    if "######" in path: path = path.replace("######", "%06d")
-    if "#####" in path: path = path.replace("#####", "%05d")
-    if "####" in path: path = path.replace("####", "%04d")
-    if "###" in path: path = path.replace("###", "%03d")
+    if "######" in path:
+        path = path.replace("######", "%06d")
+    if "#####" in path:
+        path = path.replace("#####", "%05d")
+    if "####" in path:
+        path = path.replace("####", "%04d")
+    if "###" in path:
+        path = path.replace("###", "%03d")
     if is_sequence(path):
         # print "YES"
 
@@ -390,8 +410,12 @@ def get_dest_path(path):
     # elif is_ingest(path):
     #     sub_path = get_ingest_dest_path(path)
 
+    # if special_rename(path):
+    #     sub_path = special_rename(path)
+    # el
     if not sub_path:
         sub_path = get_non_rename_dest_path(path)
+
 
     sub_path = sub_path.replace("__", "_")
     script_path = get_nuke_script()
@@ -403,17 +427,42 @@ def get_dest_path(path):
 
 def get_non_rename_dest_path(path):
     new_filename = os.path.basename(path)
+    ##########################
+    version = get_version_str(new_filename)
+    ext_and_frame = get_ext_and_frame(new_filename)
+    if version not in ['', None]:
+        new_filename = new_filename.replace(version, "")
+        new_filename = new_filename.replace("s" + version[1:], "")
+    new_filename = new_filename.replace(ext_and_frame, "")
+    new_filename = "E_" + new_filename + "_" + version + "." + ext_and_frame
+    for a in ['-', '_', '.']:
+        for aa in ['-', '_', '.']:
+            f = a + aa
+            r = aa
+            if "." in f:
+                r = '.'
+            new_filename = new_filename.replace(f, r)
+    new_filename = new_filename.replace(".v", "_v")
+    new_filename = new_filename.replace("E_s_", "E_")
+    new_filename = "_".join(new_filename.split("_")[:3]+["graphics", "territory"]+new_filename.split("_")[3:])
+
+    ##########################
+
+
+
     parts_of_filename = re.split("[._-]?", new_filename)
     if len(parts_of_filename) == 1:
         new_foldername = parts_of_filename[0]
     elif len(parts_of_filename) == 2:
         new_foldername = parts_of_filename[0]
     elif len(parts_of_filename) >= 3:
-        if bool(re.match("^([0-9]*|%[0-9]+d|#+)$",parts_of_filename[-2])):
+        if bool(re.match("^([0-9]*|%[0-9]+d|#+)$", parts_of_filename[-2])):
             new_foldername = new_filename[:-(len(parts_of_filename[-1]) + len(parts_of_filename[-2]) + 2)]
         else:
             new_foldername = new_filename[:-(len(parts_of_filename[-1]) + 1)]
-    
+
+
+
     if new_filename.endswith(".abc"):
         new_sub_path = os.path.join("GEOM", new_foldername, new_filename)
     else:
@@ -515,13 +564,21 @@ def get_rename_version_str(path):
 
 
 def get_version_str(path):
-    regex = re.compile("(v\d+)", re.IGNORECASE)
+    regex = re.compile(".*[-._](v\d+)[-._].*", re.IGNORECASE)
     version_search = re.search(regex, path)
-    if len(version_search.groups()) == 1:
+    if version_search and len(version_search.groups()) == 1:
         version_str = version_search.group(1)
         return version_str
+    regex = re.compile(".*[-._](s\d+)[-._].*", re.IGNORECASE)
+    version_search = re.search(regex, path)
+    if version_search and len(version_search.groups()) == 1:
+        version_str = version_search.group(1)
+        if version_str not in [None, '']:
+            version_str = 'v' + version_str[1:]
+        return version_str
     else:
-        raise Exception("Could not find version str in: %s" % (path))
+        return "v0001"
+
 
 
 def get_ingest_dest_path(path):
@@ -533,7 +590,8 @@ def get_ingest_dest_path(path):
 
 def get_lighting_dest_path(path):
     dic = get_lighting_parts(path)
-    if dic == {}: return
+    if dic == {}:
+        return
     if dic['desc']:
         lighting_folder = "E_%(shot)s_graphics_territory_%(element)s_%(position)s_%(desc)s_%(pass)s_%(version)s"
     else:
@@ -548,7 +606,7 @@ def get_lighting_dest_path(path):
     return new_sub_path
 
 
-def get_lighting_parts(path, report_check = False):
+def get_lighting_parts(path, report_check=False):
     global report_str
     filename = os.path.basename(path)
     regex_str = "([a-zA-Z]{3}_[0-9]{4})"  # shot
@@ -601,7 +659,83 @@ def get_lighting_parts(path, report_check = False):
             if light_pass and light_pass.lower() not in accepted_lighting_passes:
                 report_str += "Lighting Pass '%s' from '%s' not recognised\n" % (light_pass, filename)
 
-        
+    else:
+        report_str += "Path does not match expected lighting pattern: %s\n" % filename
+    return return_dict
+
+
+
+def special_rename(path):
+    dic = special_rename2(path)
+    if dic == {}:
+        return
+    if dic['desc']:
+        lighting_folder = "E_%(shot)s_graphics_territory_%(element)s_%(position)s_%(desc)s_%(pass)s_%(version)s"
+    else:
+        lighting_folder = "E_%(shot)s_graphics_territory_%(element)s_%(position)s_%(pass)s_%(version)s"
+    if dic['frame']:
+        lighting_file = lighting_folder + ".%(frame)s.%(ext)s"
+    else:
+        lighting_file = lighting_folder + ".%(ext)s"
+    new_filename = lighting_file % dic
+    new_foldername = lighting_folder % dic
+    new_sub_path = os.path.join("ELEMENTS", new_foldername, new_filename)
+    return new_sub_path
+
+
+def special_rename2(path, report_check=False):
+    global report_str
+    filename = os.path.basename(path)
+    regex_str = "([a-zA-Z]{3}_[0-9]{4})"  # shot
+    # regex_str += "_lgt_"
+    regex_str += "([a-zA-Z0-9]*)"  # element
+    regex_str += "[-._]?"
+    regex_str += "([a-zA-Z]?)"  # position
+    regex_str += "[-._]?"
+    regex_str += "([a-zA-Z0-9]*)"  # lighting dec
+    regex_str += "[-._]"
+    regex_str += "v[0-9]+"
+    regex_str += "[-._]?[_]?"
+    regex_str += "([a-zA-Z0-9_-]*)"  # lighting pass
+    regex_str += "[._-][._-]?"
+    regex_str += "([0-9]*|%[0-9]+d|#+)"  # frame
+    regex_str += "\."
+    regex_str += "([^.]+)"  # ext
+    regex_str += "$"
+    regex = re.compile(regex_str, re.IGNORECASE)
+    search = re.search(regex, filename)
+    e_str = ""
+    return_dict = {}
+    if search and len(search.groups()) == 7:
+        shot = search.group(1)
+        element = search.group(2)
+        position = search.group(3)
+        desc = search.group(4)
+        light_pass = search.group(5)
+        frame = search.group(6)
+        ext = search.group(7)
+
+        return_dict["shot"] = shot
+        return_dict["frame"] = frame
+        return_dict["ext"] = ext
+        return_dict["element"] = element
+        return_dict["position"] = position
+        return_dict["desc"] = desc
+        return_dict["pass"] = light_pass
+        return_dict["version"] = get_rename_version_str(path)
+        # if report_check:
+        #     if element.lower() not in accepted_lighting_elements:
+        #         report_str += "Lighting Element '%s' from '%s' not recognised\n" % (element, filename)
+
+        #     if position.lower() not in accepted_lighting_positions:
+        #         report_str += "Lighting position '%s' from '%s' not recognised\n" % (position, filename)
+
+        #     if desc and desc.lower() not in accepted_lighting_desc:
+        #         report_str += "Lighting desc '%s' from '%s' not recognised\n" % (desc, filename)
+
+        #     if light_pass and light_pass.lower() not in accepted_lighting_passes:
+        #         report_str += "Lighting Pass '%s' from '%s' not recognised\n" % (light_pass, filename)
+
     else:
         report_str += "Path does not match expected lighting pattern: %s\n" % filename
     return return_dict
@@ -612,6 +746,7 @@ def get_quicktime_dest_path(path):
     new_location = os.path.join("VIDREF", filename)
     return new_location
 
+
 def basic_copy(sources, dests):
     dest_folder = os.path.dirname(dests[0])
     if not os.path.exists(dest_folder):
@@ -619,10 +754,13 @@ def basic_copy(sources, dests):
     for i in range(0, len(sources)):
         s = sources[i]
         d = dests[i]
-        if "client_io" not in d: raise Exception("You are exporting outside of the client_io folder. What?")
+        if "client_io" not in d:
+            raise Exception("You are exporting outside of the client_io folder. What?")
+        print s, os.path.exists(s)
         if os.path.exists(s) and not os.path.exists(d):
             print os.path.basename(s), "-->", os.path.basename(d)
             copyfile(s, d)
+
 
 def robocopy_files(source_folder, dest_folder, files):
 
@@ -667,7 +805,6 @@ def robocopy_files(source_folder, dest_folder, files):
     print os.path.isdir(dest_folder)
     print os.path.isdir(dest_folder)
 
-
     command = ["robocopy.exe"]
     command.append("%s" % source_folder)
     command.append("%s" % dest_folder)
@@ -675,7 +812,7 @@ def robocopy_files(source_folder, dest_folder, files):
         command.append("%s" % os.path.basename(f))
     command.append("/MT")
     copied_files = []
-    
+
     for f in files:
         copied_files.append(os.path.join(dest_folder, os.path.basename(f)))
     print " ".join(command)
@@ -687,18 +824,21 @@ def robocopy_files(source_folder, dest_folder, files):
         raise Exception(err)
     return copied_files
 
+
 def rename_files(sources, dests):
     for i in range(0, len(sources)):
         s = sources[i]
         d = dests[i]
         if s == d:
             return
-        if "client_io" not in s: 1/0
-        if "client_io" not in d: 1/0
-        print s, ">>>", d 
+        if "client_io" not in s:
+            1 / 0
+        if "client_io" not in d:
+            1 / 0
+        print s, ">>>", d
         if os.path.exists(d):
             print "FILE EXISTS"
-            if filecmp.cmp(s,d):
+            if filecmp.cmp(s, d):
                 print "DELETE IT"
                 os.remove(s)
                 print "I DELETED IT"

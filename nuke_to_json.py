@@ -60,14 +60,14 @@ def get_json_data(nodes):
         if node.knob('first'):
             f = node['first'].getValue() 
             gf = nuke.Root()['first_frame'].getValue()
-            if f <= gf:
-                f = gf
+            # if f <= gf:
+            #     f = gf
             node_data['first'] = f
         if node.knob('last'):
             l = node['last'].getValue() 
             gl = nuke.Root()['last_frame'].getValue()
-            if l >= gl:
-                l = gl
+            # if l >= gl:
+            #     l = gl
             node_data['last'] = l
         json_data['nodes'].append(node_data)
     return json_data
@@ -195,8 +195,9 @@ def localise_path(path):
         path = path.replace("//ldn-fs1/projects/", "/Volumes/projects/")
     else:
         path = path.replace("/", "\\")
-        path = path.replace("\\\\Volumes\\\\Filmshare", "\\\\\\\\192.168.50.10\\\\filmshare\\\\")
-        path = path.replace("\\\\Volumes\\\\projects", "\\\\\\\\ldn-fs1\\\\projects\\\\")
+        path = path.replace("Y:", "\\\\ldn-fs1\\projects")
+        path = path.replace("\\Volumes\\Filmshare", "\\\\192.168.50.10\\filmshare\\")
+        path = path.replace("\\Volumes\\projects", "\\\\ldn-fs1\\projects\\")
     return path
 
 
