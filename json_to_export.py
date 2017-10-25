@@ -404,8 +404,8 @@ def get_source_files(read_node):
     if "%" in path:
         # print "YES"
 
-        for r in range(int(read_node['first']), int(read_node['last'])):
-            # print path , r
+        for r in range(int(read_node['first']), int(read_node['last'])+1):
+            print path , r
             files.append(path % r)
         # if len(files) == 0:
         #     # print "GLOB", path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:]
@@ -429,7 +429,7 @@ def get_dest_files(read_node, dest_path):
     if "###" in path:
         path = path.replace("###", "%03d")
     if "%" in path:
-        for r in range(int(read_node['first']), int(read_node['last'])):
+        for r in range(int(read_node['first']), int(read_node['last'])+1):
             # print path , r, os.path.exists(path % r)
             files.append(path % r)
         # if len(files) == 0:
