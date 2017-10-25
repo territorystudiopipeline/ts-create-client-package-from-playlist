@@ -7,6 +7,7 @@ import sgtk.util.shotgun as sg
 from tank_vendor.shotgun_authentication import ShotgunAuthenticator
 import datetime as dt
 import filecmp
+import glob
 from shutil import copyfile
 
 
@@ -56,6 +57,8 @@ def replace_reads(mappings):
     with open(nu_script, 'r') as file:
         filedata = file.read()
     for mapping in mappings:
+        if not mapping[1]:
+            continue
         # Replace the target string
         mapping[0] = mapping[0].replace("\\", "/")
         mapping[1] = mapping[1].replace("\\", "/")
@@ -102,9 +105,13 @@ def replace_reads(mappings):
     with open(nu_script, 'w') as file:
         file.write(filedata)
 
+    new_script_path = get_new_nuke_script()
     os.remove(get_nuke_script())
     os.remove(get_json_path())
-    os.rename(nu_script, get_nuke_script())
+    if os.path.exists(new_script_path):
+        os.remove(new_script_path)
+    os.rename(nu_script, new_script_path)
+
 
 
 def get_shotgun_connection():
@@ -183,6 +190,16 @@ def get_path_without_version(path):
 def get_nuke_script():
     script = localise_path(os.environ.get("SCRIPT"))
     return script
+
+def get_new_nuke_script():
+    path = get_nuke_script()
+    folder = os.path.dirname(path)
+    script = os.path.basename(path)
+    new = "F_%(shot)s_comp_territoryScript_%(version)s.nk"
+    dic = {"shot": get_shot_name(script).lower(),
+           "version": get_version_str(script)}
+
+    return os.path.join(folder, new % dic)
 
 
 def localise_path(path):
@@ -312,6 +329,7 @@ def localise_read_node(read_node):
     global report_str
     print "Start localise for %s" % get_read_node_path(read_node)
     path = get_read_node_path(read_node)
+    final_dest_path = get_dest_path(path)
 
     r = "\n"
     r += "%s\n" % read_node['name']
@@ -319,27 +337,34 @@ def localise_read_node(read_node):
         r += "Localised range: %d-%d\n" % (read_node['first'], read_node['last'])
 
     source_files = get_source_files(read_node)
-    dest_files = []
-    for source_file in source_files:
-        dest_files.append(get_dest_path(source_file))
+    dest_files = get_dest_files(read_node, final_dest_path)
+    # dest_files = []
+    # for source_file in source_files:
+    #     dest_files.append(get_dest_path(source_file, path))
 
     source_files, dest_files = filter_already_existing(source_files, dest_files)
+    done = False
     if len(source_files):
-        basic_copy(source_files, dest_files)
+        done = basic_copy(source_files, dest_files)
         # copied_files = robocopy_files(os.path.dirname(source_files[0]),
         #                                os.path.dirname(dest_files[0]),
         #                                source_files)
 
         # rename_files(copied_files, dest_files)
 
-    final_dest_path = get_dest_path(path)
     r += "Localised filenames renamed from/to:\n"
     r += "%s\n" % os.path.basename(path)
-    r += "-->\n"
+    if done:
+        r += "-->\n"
+    else:
+        r += "-/->\n"
     r += "%s\n" % os.path.basename(final_dest_path)
     report_str += r
     print r
-    return [path, final_dest_path]
+    if done:
+        return [path, final_dest_path]
+    else:
+        return [path, final_dest_path]
 
 
 def filter_already_existing(source_files, dest_files):
@@ -376,35 +401,69 @@ def get_source_files(read_node):
         path = path.replace("####", "%04d")
     if "###" in path:
         path = path.replace("###", "%03d")
-    if is_sequence(path):
+    if "%" in path:
         # print "YES"
 
         for r in range(int(read_node['first']), int(read_node['last'])):
-
+            # print path , r
             files.append(path % r)
-    else:
+        # if len(files) == 0:
+        #     # print "GLOB", path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:]
+        #     files = glob.glob(path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:])
+
+    elif not path.endswith(".mov"):
         # print "NO"
         files = [orig_path]
     return files
 
 
+def get_dest_files(read_node, dest_path):
+    files = []
+    path = dest_path
+    if "######" in path:
+        path = path.replace("######", "%06d")
+    if "#####" in path:
+        path = path.replace("#####", "%05d")
+    if "####" in path:
+        path = path.replace("####", "%04d")
+    if "###" in path:
+        path = path.replace("###", "%03d")
+    if "%" in path:
+        for r in range(int(read_node['first']), int(read_node['last'])):
+            # print path , r, os.path.exists(path % r)
+            files.append(path % r)
+        # if len(files) == 0:
+        #     # print "GLOB", path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:]
+        #     files = glob.glob(path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:])
+
+    elif not path.endswith(".mov"):
+        # print "NO"
+        files = [dest_path]
+    return files
+
+
 def is_sequence(path):
-    pattern = re.compile("(?:[._-]\d+|[._-]\%\d+d|[._-]#+).([^.]+)$")
+    pattern = re.compile("(?:[._-]?\d+|[._-]?\%\d+d|[._-]?#+).([^.]+)$")
     return bool(re.search(pattern, os.path.basename(path)))
 
 
 def get_dest_path(path):
-    sub_path = None
-    if is_quicktime(path):
-        sub_path = get_qt_dest_path(path)
-    elif is_comp(path):
-        sub_path = get_simple_dest_path(path)
-    elif is_precomp(path):
-        sub_path = get_simple_dest_path(path)
-    elif is_lighting(path):
-        sub_path = get_lighting_dest_path(path)
-    elif is_geo(path):
+    sub_path = get_simple_dest_path(path)
+    # if is_quicktime(path):
+    #     sub_path = get_qt_dest_path(path)
+    # el
+
+
+    # if is_comp(path):
+    #     sub_path = get_simple_dest_path(path)
+    # elif is_precomp(path):
+    #     sub_path = get_simple_dest_path(path)
+    # elif is_lighting(path):
+    #     sub_path = get_lighting_dest_path(path)
+    if is_geo(path):
         sub_path = get_geo_dest_path(path)
+
+
     # elif is_camera(path):
     #     sub_path = get_camera_dest_path(path)
     # elif is_ingest(path):
@@ -499,26 +558,78 @@ def get_simple_dest_path(path):
     filename = os.path.basename(path)
     comp_filename = "E_%(shot)s_graphics_territory_%(label)s_%(version)s.%(ext_and_frame)s"
     comp_foldername = "E_%(shot)s_graphics_territory_%(label)s_%(version)s"
-    dic = {"shot": get_shot_name(filename),
-           "label": get_label(filename),
+
+    dic = {"shot": get_shot_name(filename).lower(),
+           "label": get_simple_label(filename),
            "ext_and_frame": get_ext_and_frame(filename),
            "version": get_rename_version_str(path)}
+
     if None in dic.values():
         return None
+
     new_filename = comp_filename % dic
+    new_filename = remove_double_spaces(new_filename, preference=".")
     new_foldername = comp_foldername % dic
-    new_sub_path = os.path.join("ELEMENTS", new_foldername, new_filename)
+    new_foldername = remove_double_spaces(new_foldername, preference="_")
+
+    if new_filename.endswith(".abc"):
+        new_sub_path = os.path.join("GEOM", "GCH" + new_foldername[1:], "GCH" + new_filename[1:])
+    else:
+        new_sub_path = os.path.join("ELEMENTS", new_foldername, new_filename)
     return new_sub_path
+
+
+def remove_double_spaces(filename, preference=None):
+    for a in ['-', '_', '.']:
+        for aa in ['-', '_', '.']:
+            f = a + aa
+            r = aa
+            if preference and preference in f:
+                r = preference
+            filename = filename.replace(f, r)
+        filename = filename.strip(a)
+    return filename
+
+
+def get_simple_label(filename):
+    # label = filename.lower()
+    label = filename
+    label = label.replace(get_shot_name(label), "")
+    label = label.replace(get_rename_version_str(label), "")
+    label = label.replace(get_shot_name(label), "")
+    label = label.replace(get_ext_and_frame(label), "")
+    label = label.replace("_lgt_", "")
+    label = label.replace("_LGT_", "")
+    label = label.replace("_lyt_", "_")
+    label = label.replace("_LYT_", "_")
+    if label.lower().startswith("e_"):
+        label = label[2:]
+    # if label.startswith("s_"):
+    #     label = label[2:]
+    if label.lower().startswith("ghc_"):
+        label = label[4:]
+    if label.lower().startswith("lyt_"):
+        label = label[4:]
+    if label.lower().startswith("lgt_"):
+        label = label[4:]
+    label = label.replace(" ", "_")
+    label = remove_double_spaces(label, "_")
+    label = remove_double_spaces(label, "_")
+    return label
 
 
 def get_shot_name(path):
     global report_str
     regex = re.compile("([a-zA-Z]{3}_[0-9]{4})", re.IGNORECASE)
     shot_search = re.search(regex, path)
-    if len(shot_search.groups()) == 1:
+    if shot_search and len(shot_search.groups()) == 1:
         return shot_search.group(1)
+    script_shot_name = re.search(regex, get_nuke_script())
+    if script_shot_name and len(script_shot_name.groups()) == 1:
+        return script_shot_name.group(1)
     else:
         report_str += "Could not find shotname in: %s\n"
+        return ""
 
 
 def get_label(path):
@@ -545,7 +656,7 @@ def camelcase_string(s):
 
 def get_ext_and_frame(path):
     frame = None
-    regex = re.compile(".*[._-](\d+|#+|%\d+d)\.[^.]+$", re.IGNORECASE)
+    regex = re.compile(".*([-_.]\d+|#+|%\d+d)\.[^.]+$", re.IGNORECASE)
     frame_search = re.search(regex, path)
     if frame_search and len(frame_search.groups()) == 1:
         frame = frame_search.group(1)
@@ -564,7 +675,7 @@ def get_rename_version_str(path):
 
 
 def get_version_str(path):
-    regex = re.compile(".*[-._](v\d+)[-._].*", re.IGNORECASE)
+    regex = re.compile(".*[-._ ](v\d+)[ -._].*", re.IGNORECASE)
     version_search = re.search(regex, path)
     if version_search and len(version_search.groups()) == 1:
         version_str = version_search.group(1)
@@ -619,8 +730,8 @@ def get_lighting_parts(path, report_check=False):
     regex_str += "[-._]"
     regex_str += "v[0-9]+"
     regex_str += "[-._]?[_]?"
-    regex_str += "([a-zA-Z0-9_-]*)"  # lighting pass
-    regex_str += "[._-][._-]?"
+    regex_str += "([a-zA-Z0-9_-]*?)"  # lighting pass
+    regex_str += "[._-]?[._-]?"
     regex_str += "([0-9]*|%[0-9]+d|#+)"  # frame
     regex_str += "\."
     regex_str += "([^.]+)"  # ext
@@ -665,82 +776,6 @@ def get_lighting_parts(path, report_check=False):
 
 
 
-def special_rename(path):
-    dic = special_rename2(path)
-    if dic == {}:
-        return
-    if dic['desc']:
-        lighting_folder = "E_%(shot)s_graphics_territory_%(element)s_%(position)s_%(desc)s_%(pass)s_%(version)s"
-    else:
-        lighting_folder = "E_%(shot)s_graphics_territory_%(element)s_%(position)s_%(pass)s_%(version)s"
-    if dic['frame']:
-        lighting_file = lighting_folder + ".%(frame)s.%(ext)s"
-    else:
-        lighting_file = lighting_folder + ".%(ext)s"
-    new_filename = lighting_file % dic
-    new_foldername = lighting_folder % dic
-    new_sub_path = os.path.join("ELEMENTS", new_foldername, new_filename)
-    return new_sub_path
-
-
-def special_rename2(path, report_check=False):
-    global report_str
-    filename = os.path.basename(path)
-    regex_str = "([a-zA-Z]{3}_[0-9]{4})"  # shot
-    # regex_str += "_lgt_"
-    regex_str += "([a-zA-Z0-9]*)"  # element
-    regex_str += "[-._]?"
-    regex_str += "([a-zA-Z]?)"  # position
-    regex_str += "[-._]?"
-    regex_str += "([a-zA-Z0-9]*)"  # lighting dec
-    regex_str += "[-._]"
-    regex_str += "v[0-9]+"
-    regex_str += "[-._]?[_]?"
-    regex_str += "([a-zA-Z0-9_-]*)"  # lighting pass
-    regex_str += "[._-][._-]?"
-    regex_str += "([0-9]*|%[0-9]+d|#+)"  # frame
-    regex_str += "\."
-    regex_str += "([^.]+)"  # ext
-    regex_str += "$"
-    regex = re.compile(regex_str, re.IGNORECASE)
-    search = re.search(regex, filename)
-    e_str = ""
-    return_dict = {}
-    if search and len(search.groups()) == 7:
-        shot = search.group(1)
-        element = search.group(2)
-        position = search.group(3)
-        desc = search.group(4)
-        light_pass = search.group(5)
-        frame = search.group(6)
-        ext = search.group(7)
-
-        return_dict["shot"] = shot
-        return_dict["frame"] = frame
-        return_dict["ext"] = ext
-        return_dict["element"] = element
-        return_dict["position"] = position
-        return_dict["desc"] = desc
-        return_dict["pass"] = light_pass
-        return_dict["version"] = get_rename_version_str(path)
-        # if report_check:
-        #     if element.lower() not in accepted_lighting_elements:
-        #         report_str += "Lighting Element '%s' from '%s' not recognised\n" % (element, filename)
-
-        #     if position.lower() not in accepted_lighting_positions:
-        #         report_str += "Lighting position '%s' from '%s' not recognised\n" % (position, filename)
-
-        #     if desc and desc.lower() not in accepted_lighting_desc:
-        #         report_str += "Lighting desc '%s' from '%s' not recognised\n" % (desc, filename)
-
-        #     if light_pass and light_pass.lower() not in accepted_lighting_passes:
-        #         report_str += "Lighting Pass '%s' from '%s' not recognised\n" % (light_pass, filename)
-
-    else:
-        report_str += "Path does not match expected lighting pattern: %s\n" % filename
-    return return_dict
-
-
 def get_quicktime_dest_path(path):
     filename = os.path.basename(path)
     new_location = os.path.join("VIDREF", filename)
@@ -748,9 +783,8 @@ def get_quicktime_dest_path(path):
 
 
 def basic_copy(sources, dests):
+    done = False
     dest_folder = os.path.dirname(dests[0])
-    if not os.path.exists(dest_folder):
-        os.makedirs(dest_folder)
     for i in range(0, len(sources)):
         s = sources[i]
         d = dests[i]
@@ -759,8 +793,12 @@ def basic_copy(sources, dests):
         print s, os.path.exists(s)
         if os.path.exists(s) and not os.path.exists(d):
             print os.path.basename(s), "-->", os.path.basename(d)
+            if not os.path.exists(dest_folder):
+                os.makedirs(dest_folder)
             copyfile(s, d)
-
+        if not done and os.path.exists(d):
+            done = True
+    return done
 
 def robocopy_files(source_folder, dest_folder, files):
 

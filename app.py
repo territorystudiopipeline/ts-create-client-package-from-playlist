@@ -285,8 +285,9 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         cmd += ' -frames 1  -prop LimitGroups=nuker -pool pipeline -priority 55 -name "%s"' % job_name
         cmd += ' -prop "EnvironmentKeyValue0=SCRIPT=%s"' % (nuke_script)
         cmd += ' -prop "EnvironmentKeyValue1=SHOTGUN_PUBLISHED_FILE_ID=%s"' % (id)
-        cmd += ' -prop "EnvironmentKeyValue2=NUKE_PATH=\\\\\\\\ldn-fs1\\\\projects\\\\dng02_mae\\\\__pipeline\\\\configs\\\\nuke\\\\dotNuke_170928"'
+        cmd += ' -prop "EnvironmentKeyValue2=NUKE_PATH=\\\\\\\\ldn-fs1\\\\projects\\\\dng02_mae\\\\__pipeline\\\\configs\\\\nuke\\\\dotNuke_170928;\\\\\\\\ldn-fs1\\\\projects\\\\__pipeline\\\\configs\\\\nuke\\\\dotNuke_170928"'
         cmd += ' -prop "EnvironmentKeyValue3=PYTHONPATH=\\\\\\\\ldn-fs1\\\\projects\\\\dng02_mae\\\\_shotgun\\\\install\\\\core\\\\python"'
+                                                        
         out = sub.check_output(cmd, shell=True)
         self.nks_submitted_for_export.add(nuke_script)
         job_id = re.findall('.*JobID=(.+)\\n.*', out)[0]

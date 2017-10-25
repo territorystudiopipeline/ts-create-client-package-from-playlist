@@ -1,13 +1,18 @@
 import nuke
 import os
 import re
+import sys
 import sgtk
 import subprocess
 import sgtk.util.shotgun as sg
 from tank_vendor.shotgun_authentication import ShotgunAuthenticator
 import datetime as dt
 import filecmp
+import nukescripts
 import json
+import traceback
+import glob
+import cryptomatte_utilities as cu
 
 new_lighting_pass_file_name = "E_%(shot)s_graphics_territory_lgt_%(element)s_%(desc)s_%(pass)s_%(version)s.%04d.%(ext)s"
 
@@ -22,8 +27,8 @@ accepted_lighting_passes = ['colour_passes', 'beauty', 'alpha', 'direct_diffuse'
                             'direct_specular', 'diffuse_albedo', 'indirect_diffuse',
                             'indirect_specular', 'reflection', 'refraction', 'z', 'n',
                             'refraction_opacity', 'crypto_material', 'depth', 'emission',
-                            'normals', 'p', 'pref', 'vector', 'id_1', 'id_2', 'id_3', 'id_4', 'id_5', 'id_6', 'id_7', 'id_8','id_9',
-                            'id_01', 'id_02', 'id_03', 'id_04', 'id_05', 'id_06', 'id_07', 'id_08', 'id_09', 'id_10','text3d']
+                            'normals', 'p', 'pref', 'vector', 'id_1', 'id_2', 'id_3', 'id_4', 'id_5', 'id_6', 'id_7', 'id_8', 'id_9',
+                            'id_01', 'id_02', 'id_03', 'id_04', 'id_05', 'id_06', 'id_07', 'id_08', 'id_09', 'id_10', 'text3d']
 
 global_version = "v000"
 
@@ -35,6 +40,32 @@ def main():
     open_script()
     read_nodes = get_valid_read_nodes()
     export_to_json(read_nodes)
+
+
+    print "ATTEMPTING TO CLEAR CACHE"
+    print "ATTEMPTING TO CLEAR CACHE"
+    print "ATTEMPTING TO CLEAR CACHE"
+    print "ATTEMPTING TO CLEAR CACHE"
+    print "ATTEMPTING TO CLEAR CACHE"
+    nukescripts.cache_clear("")
+    print "CLEARTED CACHE"
+    print "CLEARTED CACHE"
+    print "CLEARTED CACHE"
+    print "CLEARTED CACHE"
+    print "CLEARTED CACHE"
+
+    print "ATTEMPTING TO CLOSE SCRIPT"
+    print "ATTEMPTING TO CLOSE SCRIPT"
+    print "ATTEMPTING TO CLOSE SCRIPT"
+    print "ATTEMPTING TO CLOSE SCRIPT"
+    print "ATTEMPTING TO CLOSE SCRIPT"
+    nuke.scriptClose()
+    print "CLOSED SCRIPT"
+    print "CLOSED SCRIPT"
+    print "CLOSED SCRIPT"
+    print "CLOSED SCRIPT"
+    print "CLOSED SCRIPT"
+
     # report_str += "\nExport History:\n"
     # path_mapings = []
     # for node in read_nodes:
@@ -45,26 +76,43 @@ def main():
 
 
 def export_to_json(nodes):
+    print "STARTING JSON DUMP"
+    print "STARTING JSON DUMP"
+    print "STARTING JSON DUMP"
+    print "STARTING JSON DUMP"
+    print "STARTING JSON DUMP"
+    print "STARTING JSON DUMP"
+    print "STARTING JSON DUMP"
+    print "STARTING JSON DUMP"
     json_data = get_json_data(nodes)
     json_path = os.path.join(os.path.dirname(get_nuke_script()), "valid_nodes.json")
     with open(json_path, 'w') as outfile:
         json.dump(json_data, outfile)
+    print "FINISHING JSON DUMP"
+    print "FINISHING JSON DUMP"
+    print "FINISHING JSON DUMP"
+    print "FINISHING JSON DUMP"
+    print "FINISHING JSON DUMP"
+    print "FINISHING JSON DUMP"
+    print "FINISHING JSON DUMP"
+    print "FINISHING JSON DUMP"
+    print "FINISHING JSON DUMP"
 
 
 def get_json_data(nodes):
-    json_data = {"report": report_str, "nodes":[]}
+    json_data = {"report": report_str, "nodes": []}
     for node in nodes:
         node_data = {}
         node_data['file'] = node['file'].getValue()
         node_data['name'] = node.fullName()
         if node.knob('first'):
-            f = node['first'].getValue() 
+            f = node['first'].getValue()
             gf = nuke.Root()['first_frame'].getValue()
             # if f <= gf:
             #     f = gf
             node_data['first'] = f
         if node.knob('last'):
-            l = node['last'].getValue() 
+            l = node['last'].getValue()
             gl = nuke.Root()['last_frame'].getValue()
             # if l >= gl:
             #     l = gl
@@ -73,18 +121,51 @@ def get_json_data(nodes):
     return json_data
 
 
-
-def open_script():    
+def open_script():
     global global_version
     script = get_nuke_script()
     global_version = get_version_str(script)
     nuke.scriptOpen(script)
+    print "-----------------decryptomatte----starting-----------"
+    cu.decryptomatte_all()
+    print "-----------------decryptomatte----finished----------"
+    print "-----------------convertGizmosToGroups----starting-----------"
+    bakeGizmos()
+    print "-----------------convertGizmosToGroups----finished----------"
     s = nuke.root()
-    s.knob('project_directory').setValue("[python {nuke.script_directory()}]")
-    nu_script = script[:-3]+"_localised.nk"
+    s.knob('project_directory').setValue("[file dirname [value root.name]]")
+    nu_script = script[:-3] + "_localised.nk"
     if os.path.exists(nu_script):
         os.remove(nu_script)
-    nuke.scriptSaveAs(nu_script)
+    try:
+        print "START SAVING"
+        print "START SAVING"
+        print "START SAVING"
+        print "START SAVING"
+        print "START SAVING"
+        print "START SAVING"
+        print "START SAVING"
+        print "START SAVING"
+        nuke.scriptSaveAs(nu_script)
+        print "COMPLETED SAVING"
+        print "COMPLETED SAVING"
+        print "COMPLETED SAVING"
+        print "COMPLETED SAVING"
+        print "COMPLETED SAVING"
+        print "COMPLETED SAVING"
+        print "COMPLETED SAVING"
+        print "COMPLETED SAVING"
+    except Exception as e:
+        print "ERROR WHILE SAVING"
+        print "ERROR WHILE SAVING"
+        print "ERROR WHILE SAVING"
+        print "ERROR WHILE SAVING"
+        print "ERROR WHILE SAVING"
+        print "ERROR WHILE SAVING"
+        print "ERROR WHILE SAVING"
+        print "ERROR WHILE SAVING"
+
+
 
 
 # def replace_reads(mappings):
@@ -111,7 +192,6 @@ def open_script():
 
 #     os.remove(get_nuke_script())
 #     os.rename(nu_script, get_nuke_script())
-
 
 
 # def get_shotgun_connection():
@@ -172,8 +252,6 @@ def check_missmatching_versions(read_nodes):
         raise Exception(e_str)
 
 
-
-
 def get_path_without_version(path):
     regex = re.compile("(.*)(v[0-9]+)(.*$)", re.IGNORECASE)
     search = re.search(regex, path)
@@ -211,7 +289,7 @@ def get_valid_read_nodes():
                 r = "Missing Files: %s\n" % get_read_node_path(node)
                 print r
                 report_str += r
-            
+
             valid_nodes.append(node)
     # check_missmatching_versions(valid_nodes)
     return valid_nodes
@@ -227,12 +305,13 @@ def has_missing_files(node):
 
 
 def get_all_read_nodes():
-    classes = ["Read", "ReadGeo", "Camera", "Camera2"]
+    classes = ["Read", "ReadGeo", "ReadGeo2", "Camera", "Camera2"]
     nodes = []
     for node in get_all_nodes():
-        if node.Class() in classes and get_read_node_path(node).strip() != "":
+        if not node['name'].getValue().startswith("x_") and node.Class() in classes and get_read_node_path(node).strip() != "":
             nodes.append(node)
     return nodes
+
 
 def get_all_nodes():
     all_nodes = nuke.allNodes()
@@ -258,12 +337,10 @@ def matches_expected_pattern(read_node):
                is_camera(path) or
                is_geo(path))
     if is_lighting(path):
-        #report on validity
+        # report on validity
         get_lighting_parts(path, report_check=True)
     if not matched:
         report_str += "Path does not match any expected patterns: %s\n" % path
-
-
 
     return path.startswith("..") == False
 
@@ -328,16 +405,15 @@ def localise_read_node(read_node):
     dest_files = []
     for source_file in source_files:
         dest_files.append(get_dest_path(source_file))
-    
+
     source_files, dest_files = filter_already_existing(source_files, dest_files)
     if len(source_files):
         copied_files = robocopy_files(os.path.dirname(source_files[0]),
-                                       os.path.dirname(dest_files[0]),
-                                       source_files)
+                                      os.path.dirname(dest_files[0]),
+                                      source_files)
 
+        rename_files(copied_files, dest_files)
 
-        rename_files(copied_files, dest_files) 
-        
     final_dest_path = get_dest_path(path)
     r = "Localised filenames renamed from/to:\n"
     r += "%s\n" % os.path.basename(path)
@@ -350,11 +426,11 @@ def localise_read_node(read_node):
 def filter_already_existing(source_files, dest_files):
     ss = []
     dd = []
-    for i in range(0,len(source_files)):
+    for i in range(0, len(source_files)):
         s = source_files[i]
         d = dest_files[i]
         if os.path.exists(d):
-            if not filecmp.cmp(s,d):
+            if not filecmp.cmp(s, d):
                 ss.append(s)
                 dd.append(d)
         else:
@@ -371,19 +447,29 @@ def get_read_node_path(read_node):
 
 def get_source_files(read_node):
     files = []
-    path = get_read_node_path(read_node)
-    if "######" in path: path = path.replace("######", "%06d")
-    if "#####" in path: path = path.replace("#####", "%05d")
-    if "####" in path: path = path.replace("####", "%04d")
-    if "###" in path: path = path.replace("###", "%03d")
-    if is_sequence(path):
+    orig_path = get_read_node_path(read_node)
+    path = orig_path
+    if "######" in path:
+        path = path.replace("######", "%06d")
+    if "#####" in path:
+        path = path.replace("#####", "%05d")
+    if "####" in path:
+        path = path.replace("####", "%04d")
+    if "###" in path:
+        path = path.replace("###", "%03d")
+    if "%" in path:
+        # print "YES"
 
-        for r in range(int(read_node['first'].getValue()),
-                       int(read_node['last'].getValue())):
-
+        for r in range(int(read_node['first'].getValue()), int(read_node['last'].getValue())):
+            # print path , r
             files.append(path % r)
+        if len(files) == 0:
+            print "globbing", path 
+            files = glob.glob(path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:])
+
     else:
-        files = [path]
+        # print "NO"
+        files = [orig_path]
     return files
 
 
@@ -428,11 +514,11 @@ def get_non_rename_dest_path(path):
     elif len(parts_of_filename) == 2:
         new_foldername = parts_of_filename[0]
     elif len(parts_of_filename) >= 3:
-        if bool(re.match("^([0-9]*|%[0-9]+d|#+)$",parts_of_filename[-2])):
+        if bool(re.match("^([0-9]*|%[0-9]+d|#+)$", parts_of_filename[-2])):
             new_foldername = new_filename[:-(len(parts_of_filename[-1]) + len(parts_of_filename[-2]) + 2)]
         else:
             new_foldername = new_filename[:-(len(parts_of_filename[-1]) + 1)]
-    
+
     if new_filename.endswith(".abc"):
         new_sub_path = os.path.join("GEOM", new_foldername, new_filename)
     else:
@@ -552,7 +638,8 @@ def get_ingest_dest_path(path):
 
 def get_lighting_dest_path(path):
     dic = get_lighting_parts(path)
-    if dic == {}: return
+    if dic == {}:
+        return
     if dic['desc']:
         lighting_folder = "E_%(shot)s_graphics_territory_%(element)s_%(position)s_%(desc)s_%(pass)s_%(version)s"
     else:
@@ -567,7 +654,7 @@ def get_lighting_dest_path(path):
     return new_sub_path
 
 
-def get_lighting_parts(path, report_check = False):
+def get_lighting_parts(path, report_check=False):
     global report_str
     filename = os.path.basename(path)
     regex_str = "([a-zA-Z]{3}_[0-9]{4})"  # shot
@@ -620,7 +707,6 @@ def get_lighting_parts(path, report_check = False):
             if light_pass and light_pass.lower() not in accepted_lighting_passes:
                 report_str += "Lighting Pass '%s' from '%s' not recognised\n" % (light_pass, filename)
 
-        
     else:
         report_str += "Path does not match expected lighting pattern: %s\n" % filename
     return return_dict
@@ -643,7 +729,7 @@ def robocopy_files(source_folder, dest_folder, files):
         command.append("%s" % os.path.basename(f))
     command.append("/MT")
     copied_files = []
-    
+
     for f in files:
         copied_files.append(os.path.join(dest_folder, os.path.basename(f)))
     p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -652,21 +738,161 @@ def robocopy_files(source_folder, dest_folder, files):
         raise Exception(err)
     return copied_files
 
+
 def rename_files(sources, dests):
     for i in range(0, len(sources)):
         s = sources[i]
         d = dests[i]
         if s == d:
             return
-        if "client_io" not in s: 1/0
-        if "client_io" not in d: 1/0
+        if "client_io" not in s:
+            1 / 0
+        if "client_io" not in d:
+            1 / 0
         if os.path.exists(d):
-            if filecmp.cmp(s,d):
+            if filecmp.cmp(s, d):
                 os.remove(s)
             else:
                 raise Exception("Cannot rename beacuse another file already exists: %s" % d)
         else:
             os.rename(s, d)
+
+
+
+
+
+
+def getAllNodes(topLevel):
+    '''
+    recursively return all nodes starting at topLevel. Default topLevel is nuke.root()
+    '''
+    allNodes = nuke.allNodes(group=topLevel)
+    for n in allNodes:
+        allNodes = allNodes + getAllNodes(n)
+    return allNodes
+
+
+def getOutputs(node):
+    '''
+    Return a dictionary of the nodes and pipes that are connected to node
+    '''
+    # print "getOutputs 0"
+    depDict = {}
+    # print "getOutputs 1"
+    dependencies = node.dependent(nuke.INPUTS | nuke.HIDDEN_INPUTS, forceEvaluate = False)
+    # print dependencies
+    # print "getOutputs 2"
+    for d in dependencies:
+        # print "getOutputs 3"
+        depDict[d] = []
+        # print "getOutputs 4"
+        for i in range(d.inputs()):
+            # print "getOutputs 5"
+            if d.input(i) == node:
+                # print "getOutputs 6"
+                depDict[d].append(i)
+                # print "getOutputs 7"
+            # print "getOutputs 8"
+        # print "getOutputs 9"
+    # print "getOutputs 10"
+    return depDict
+
+
+def isGizmo(node):
+    '''
+    return True if node is gizmo
+    '''
+    return 'gizmo_file' in node.knobs()
+
+
+def gizmoIsDefault(gizmo):
+    '''Check if gizmo is in default install path'''
+    installPath = os.path.dirname(nuke.EXE_PATH)
+    gizmoPath = gizmo.filename()
+    installPathSet = set(installPath.split('/'))
+    gizmoPathSet = set(gizmoPath.split('/'))
+    gizmoPathSet.issubset(installPathSet)
+    gizmoIsDefault = os.path.commonprefix([installPath, gizmoPath]) == installPath
+    return gizmoIsDefault
+
+
+def getParent(n):
+    '''
+    return n's parent node, return nuke.root()n is on the top level
+    '''
+    return nuke.toNode('.'.join(n.fullName().split('.')[:-1])) or nuke.root()
+
+
+def bakeGizmo(gizmo):
+    '''
+    copy gizmo to group and replace it in the tree, so all inputs and outputs use the new group.
+    returns the new group node
+    '''
+    print "start baking"
+    try:
+        parent = getParent(gizmo)
+    except Exception as e:
+        print e
+        print "Cannot get parent"
+        return
+    groupName = nuke.tcl(
+        'global no_gizmo; set no_gizmo 1; in %s {%s -New} ; return [value [stack 0].name]' % (parent.fullName(), gizmo.Class()))
+    group = nuke.toNode('.'.join((parent.fullName(), groupName)))
+    group.setSelected(False)
+    if getOutputs(gizmo):
+        # RECONNECT OUTPUTS IF THERE ARE ANY
+        for node, pipes in getOutputs(gizmo).iteritems():
+            for i in pipes:
+                node.setInput(i, group)
+    # RECONNECT INPUTS
+    for i in range(gizmo.inputs()):
+        group.setInput(i, gizmo.input(i))
+
+    group.setXYpos(gizmo.xpos(), gizmo.ypos())
+    # COPY VALUES
+    group.readKnobs(gizmo.writeKnobs(nuke.TO_SCRIPT))
+    gizmoName = gizmo.name()
+    nuke.delete(gizmo)
+    group.setName(gizmoName)
+
+    print "end baking"
+    # return group
+
+
+def bakeGizmos(topLevel=nuke.root(), excludeDefaults=False):
+    for n in getAllNodes(topLevel):
+        n.setSelected(False)
+    gs = []
+    for n in getAllNodes(topLevel):
+        try:
+            if isGizmo(n):
+               gs.append(n)
+        except Exception as e:
+            print "x=x=x=x=x Exception", str(e)
+    for n in gs:
+        print "---------| new loop |---------"
+        name = n['name'].getValue()
+        print "---------| looking at %s |---------" % name
+
+        try:
+
+            if isGizmo(n):
+                # if not gizmoIsDefault(n):
+                #     # ALWAYS BAKE CUSTOM GIZMOS
+                print "---------| starting bake %s |---------" % name
+                bakeGizmo(n)
+                print "---------| finish bake %s |---------" % name
+
+                # elif not excludeDefaults:
+                #     # BAKE NON-DEFAULT GIZMOS IF REQUESTED
+                #     print "---------| starting bake %s |---------" % name
+                #     bakeGizmo(n)
+                #     print "---------| finish bake %s |---------" % name
+        except Exception as e:
+            print "x-x-x-x-x Exception", str(e)
+            traceback.print_tb(e.__traceback__)
+        print "---------| end of loop |---------"
+
 
 
 main()
