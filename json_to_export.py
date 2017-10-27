@@ -63,43 +63,54 @@ def replace_reads(mappings):
         mapping[0] = mapping[0].replace("\\", "/")
         mapping[1] = mapping[1].replace("\\", "/")
         if "ELEMENTS" in mapping[1]:
-            mapping[1] = "../ELEMENTS" + mapping[1].split("ELEMENTS")[1]
+            mapping[1] = "../../%s/ELEMENTS%s" % (mapping[1].split("ELEMENTS")[0].split("/")[-2],
+                                                mapping[1].split("ELEMENTS")[1])
         if "GEOM" in mapping[1]:
-            mapping[1] = "../GEOM" + mapping[1].split("GEOM")[1]
+            mapping[1] = "../../%s/GEOM%s" % (mapping[1].split("GEOM")[0].split("/")[-2],
+                                            mapping[1].split("GEOM")[1])
         if "VIDREF" in mapping[1]:
-            mapping[1] = "../VIDREF" + mapping[1].split("VIDREF")[1]
+            mapping[1] = "../../%s/VIDREF%s" % (mapping[1].split("VIDREF")[0].split("/")[-2],
+                                              mapping[1].split("VIDREF")[1])
+        for drive in ["Y:", "A:"]:
+            mapping0 = mapping[0]
+            mapping1 = mapping[1]
+            mapping0 = mapping0.replace(drive, "//ldn-fs1/projects")
+            mapping0 = mapping0.replace("######", "%06d")
+            mapping0 = mapping0.replace("#####", "%05d")
+            mapping0 = mapping0.replace("####", "%04d")
+            mapping0 = mapping0.replace("###", "%03d")
+            filedata = filedata.replace(mapping0, mapping1)
+            print "-REPLACE", mapping0, mapping1
 
-        mapping[0] = mapping[0].replace("Y:", "//ldn-fs1/projects")
-        mapping[0] = mapping[0].replace("######", "%06d")
-        mapping[0] = mapping[0].replace("#####", "%05d")
-        mapping[0] = mapping[0].replace("####", "%04d")
-        mapping[0] = mapping[0].replace("###", "%03d")
-        filedata = filedata.replace(mapping[0], mapping[1])
-        print "REPLACE", mapping[0], mapping[1]
+            mapping0 = mapping[0]
+            mapping1 = mapping[1]
+            mapping0 = mapping0.replace(drive, "//ldn-fs1/projects")
+            mapping0 = mapping0.replace("%06d", "######")
+            mapping0 = mapping0.replace("%05d", "#####")
+            mapping0 = mapping0.replace("%04d", "####")
+            mapping0 = mapping0.replace("%03d", "###")
+            filedata = filedata.replace(mapping0, mapping1)
+            print "-REPLACE", mapping0, mapping1
 
-        mapping[0] = mapping[0].replace("Y:", "//ldn-fs1/projects")
-        mapping[0] = mapping[0].replace("%06d", "######")
-        mapping[0] = mapping[0].replace("%05d", "#####")
-        mapping[0] = mapping[0].replace("%04d", "####")
-        mapping[0] = mapping[0].replace("%03d", "###")
-        filedata = filedata.replace(mapping[0], mapping[1])
-        print "REPLACE", mapping[0], mapping[1]
+            mapping0 = mapping[0]
+            mapping1 = mapping[1]
+            mapping0 = mapping0.replace("//ldn-fs1/projects", drive)
+            mapping0 = mapping0.replace("######", "%06d")
+            mapping0 = mapping0.replace("#####", "%05d")
+            mapping0 = mapping0.replace("####", "%04d")
+            mapping0 = mapping0.replace("###", "%03d")
+            filedata = filedata.replace(mapping0, mapping1)
+            print "-REPLACE", mapping0, mapping1
 
-        mapping[0] = mapping[0].replace("//ldn-fs1/projects", "Y:")
-        mapping[0] = mapping[0].replace("######", "%06d")
-        mapping[0] = mapping[0].replace("#####", "%05d")
-        mapping[0] = mapping[0].replace("####", "%04d")
-        mapping[0] = mapping[0].replace("###", "%03d")
-        filedata = filedata.replace(mapping[0], mapping[1])
-        print "REPLACE", mapping[0], mapping[1]
-
-        mapping[0] = mapping[0].replace("//ldn-fs1/projects", "Y:")
-        mapping[0] = mapping[0].replace("%06d", "######")
-        mapping[0] = mapping[0].replace("%05d", "#####")
-        mapping[0] = mapping[0].replace("%04d", "####")
-        mapping[0] = mapping[0].replace("%03d", "###")
-        filedata = filedata.replace(mapping[0], mapping[1])
-        print "REPLACE", mapping[0], mapping[1]
+            mapping0 = mapping[0]
+            mapping1 = mapping[1]
+            mapping0 = mapping0.replace("//ldn-fs1/projects", drive)
+            mapping0 = mapping0.replace("%06d", "######")
+            mapping0 = mapping0.replace("%05d", "#####")
+            mapping0 = mapping0.replace("%04d", "####")
+            mapping0 = mapping0.replace("%03d", "###")
+            filedata = filedata.replace(mapping0, mapping1)
+            print "-REPLACE", mapping0, mapping1
 
     # Write the file out again
     with open(nu_script, 'w') as file:
@@ -210,6 +221,7 @@ def localise_path(path):
     else:
         path = path.replace("/", "\\")
         path = path.replace("Y:", "\\\\ldn-fs1\\projects")
+        path = path.replace("A:", "\\\\ldn-fs1\\projects")
         path = path.replace("\\Volumes\\Filmshare", "\\\\192.168.50.10\\filmshare\\")
         path = path.replace("\\Volumes\\projects", "\\\\ldn-fs1\\projects\\")
     return path
@@ -460,8 +472,8 @@ def get_dest_path(path):
     #     sub_path = get_simple_dest_path(path)
     # elif is_lighting(path):
     #     sub_path = get_lighting_dest_path(path)
-    if is_geo(path):
-        sub_path = get_geo_dest_path(path)
+    # if is_geo(path):
+    #     sub_path = get_geo_dest_path(path)
 
 
     # elif is_camera(path):
@@ -478,7 +490,7 @@ def get_dest_path(path):
 
     sub_path = sub_path.replace("__", "_")
     script_path = get_nuke_script()
-    root_of_export = os.path.dirname(os.path.dirname(script_path))
+    root_of_export = os.path.dirname(os.path.dirname(os.path.dirname(script_path)))
 
     dest_path = os.path.join(root_of_export, sub_path)
     return dest_path
@@ -565,7 +577,7 @@ def get_simple_dest_path(path):
            "version": get_rename_version_str(path)}
 
     if None in dic.values():
-        return None
+        raise Exception("Error with %s", path)
 
     new_filename = comp_filename % dic
     new_filename = remove_double_spaces(new_filename, preference=".")
@@ -573,9 +585,9 @@ def get_simple_dest_path(path):
     new_foldername = remove_double_spaces(new_foldername, preference="_")
 
     if new_filename.endswith(".abc"):
-        new_sub_path = os.path.join("GEOM", "GCH" + new_foldername[1:], "GCH" + new_filename[1:])
+        new_sub_path = os.path.join(get_shot_name(filename).upper(), "GEOM", "GCH" + new_foldername[1:], "GCH" + new_filename[1:])
     else:
-        new_sub_path = os.path.join("ELEMENTS", new_foldername, new_filename)
+        new_sub_path = os.path.join(get_shot_name(filename).upper(), "ELEMENTS", new_foldername, new_filename)
     return new_sub_path
 
 

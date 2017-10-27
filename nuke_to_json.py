@@ -284,9 +284,9 @@ def get_valid_read_nodes():
     valid_nodes = []
     all_nodes = get_all_read_nodes()
     for node in all_nodes:
-        if is_enabled(node) and matches_expected_pattern(node):
-            if has_missing_files(node):
-                r = "Missing Files: %s\n" % get_read_node_path(node)
+        if is_enabled(node):
+            if not has_files(node):
+                r = "Missing Files: '%s'\n" % get_read_node_path(node)
                 print r
                 report_str += r
 
@@ -295,13 +295,14 @@ def get_valid_read_nodes():
     return valid_nodes
 
 
-def has_missing_files(node):
+def has_files(node):
+    has_files = False
     all_files = get_source_files(node)
     for file in all_files:
         f = localise_path(file)
-        if not os.path.exists(f):
-            return True
-    return False
+        if os.path.exists(f):
+            has_files = True
+    return has_files
 
 
 def get_all_read_nodes():
@@ -339,8 +340,8 @@ def matches_expected_pattern(read_node):
     if is_lighting(path):
         # report on validity
         get_lighting_parts(path, report_check=True)
-    if not matched:
-        report_str += "Path does not match any expected patterns: %s\n" % path
+    # if not matched:
+    #     report_str += "Path does not match any expected patterns: %s\n" % path
 
     return path.startswith("..") == False
 
@@ -460,12 +461,12 @@ def get_source_files(read_node):
     if "%" in path:
         # print "YES"
 
-        for r in range(int(read_node['first'].getValue()), int(read_node['last'].getValue())):
+        for r in range(int(read_node['first'].getValue()), int(read_node['last'].getValue())+1):
             # print path , r
             files.append(path % r)
-        if len(files) == 0:
-            print "globbing", path 
-            files = glob.glob(path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:])
+        # if len(files) == 0:
+        #     print "globbing", path 
+        #     files = glob.glob(path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:])
 
     else:
         # print "NO"
@@ -694,21 +695,21 @@ def get_lighting_parts(path, report_check=False):
         return_dict["desc"] = desc
         return_dict["pass"] = light_pass
         return_dict["version"] = get_rename_version_str(path)
-        if report_check:
-            if element.lower() not in accepted_lighting_elements:
-                report_str += "Lighting Element '%s' from '%s' not recognised\n" % (element, filename)
+        # if report_check:
+        #     if element.lower() not in accepted_lighting_elements:
+        #         report_str += "Lighting Element '%s' from '%s' not recognised\n" % (element, filename)
 
-            if position.lower() not in accepted_lighting_positions:
-                report_str += "Lighting position '%s' from '%s' not recognised\n" % (position, filename)
+        #     if position.lower() not in accepted_lighting_positions:
+        #         report_str += "Lighting position '%s' from '%s' not recognised\n" % (position, filename)
 
-            if desc and desc.lower() not in accepted_lighting_desc:
-                report_str += "Lighting desc '%s' from '%s' not recognised\n" % (desc, filename)
+        #     if desc and desc.lower() not in accepted_lighting_desc:
+        #         report_str += "Lighting desc '%s' from '%s' not recognised\n" % (desc, filename)
 
-            if light_pass and light_pass.lower() not in accepted_lighting_passes:
-                report_str += "Lighting Pass '%s' from '%s' not recognised\n" % (light_pass, filename)
+        #     if light_pass and light_pass.lower() not in accepted_lighting_passes:
+        #         report_str += "Lighting Pass '%s' from '%s' not recognised\n" % (light_pass, filename)
 
-    else:
-        report_str += "Path does not match expected lighting pattern: %s\n" % filename
+    # else:
+    #     report_str += "Path does not match expected lighting pattern: %s\n" % filename
     return return_dict
 
 
