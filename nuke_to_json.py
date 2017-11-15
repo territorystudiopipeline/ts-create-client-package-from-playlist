@@ -125,7 +125,24 @@ def open_script():
     global global_version
     script = get_nuke_script()
     global_version = get_version_str(script)
-    nuke.scriptOpen(script)
+
+    print "START OPENING"
+    print "START OPENING"
+    print "START OPENING"
+    print "START OPENING"
+    print "START OPENING"
+    print "START OPENING"
+    print "START OPENING"
+    print "START OPENING"
+    nuke.scriptReadFile(script)
+    print "FINISH OPENING"
+    print "FINISH OPENING"
+    print "FINISH OPENING"
+    print "FINISH OPENING"
+    print "FINISH OPENING"
+    print "FINISH OPENING"
+    print "FINISH OPENING"
+    print "FINISH OPENING"
     print "-----------------decryptomatte----starting-----------"
     cu.decryptomatte_all()
     print "-----------------decryptomatte----finished----------"
@@ -309,7 +326,10 @@ def get_all_read_nodes():
     classes = ["Read", "ReadGeo", "ReadGeo2", "Camera", "Camera2"]
     nodes = []
     for node in get_all_nodes():
-        if not node['name'].getValue().startswith("x_") and node.Class() in classes and get_read_node_path(node).strip() != "":
+        if (not node['name'].getValue().startswith("x_") and
+                node.Class() in classes and
+                get_read_node_path(node).strip() != "" and not
+                os.path.isdir(get_read_node_path(node))):
             nodes.append(node)
     return nodes
 
@@ -460,9 +480,9 @@ def get_source_files(read_node):
         path = path.replace("###", "%03d")
     if "%" in path:
         # print "YES"
-
+        
         for r in range(int(read_node['first'].getValue()), int(read_node['last'].getValue())+1):
-            # print path , r
+            print path , r
             files.append(path % r)
         # if len(files) == 0:
         #     print "globbing", path 
@@ -871,7 +891,10 @@ def bakeGizmos(topLevel=nuke.root(), excludeDefaults=False):
         except Exception as e:
             print "x=x=x=x=x Exception", str(e)
     for n in gs:
-        print "---------| new loop |---------"
+        name = n['name'].getValue()
+        print "---------| we will be looking at %s |---------" % name
+    for n in gs:
+        print "---------| new loop %s|---------"
         name = n['name'].getValue()
         print "---------| looking at %s |---------" % name
 

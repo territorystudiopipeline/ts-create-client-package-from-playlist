@@ -9,6 +9,7 @@ import datetime as dt
 import filecmp
 import glob
 from shutil import copyfile
+from shutil import copy2
 
 
 new_lighting_pass_file_name = "E_%(shot)s_graphics_territory_lgt_%(element)s_%(desc)s_%(pass)s_%(version)s.%04d.%(ext)s"
@@ -59,6 +60,9 @@ def replace_reads(mappings):
     for mapping in mappings:
         if not mapping[1]:
             continue
+        if not os.path.isfile(mapping[1]):
+            if "###" not in mapping[1] and "%" not in mapping[1]:
+                continue
         # Replace the target string
         mapping[0] = mapping[0].replace("\\", "/")
         mapping[1] = mapping[1].replace("\\", "/")
@@ -214,6 +218,7 @@ def get_new_nuke_script():
 
 
 def localise_path(path):
+    # print path
     if os.name == "posix":
         path = path.replace("\\", "/")
         path = path.replace("//192.168.50.10/filmshare/", "/Volumes/Filmshare/")
@@ -386,7 +391,7 @@ def filter_already_existing(source_files, dest_files):
         s = source_files[i]
         d = dest_files[i]
         if os.path.exists(s) and os.path.exists(d):
-            if not filecmp.cmp(s, d):
+            if not filecmp.cmp(s, d, shallow=False):
                 ss.append(s)
                 dd.append(d)
         else:
@@ -417,13 +422,14 @@ def get_source_files(read_node):
         # print "YES"
 
         for r in range(int(read_node['first']), int(read_node['last'])+1):
-            print path , r
+            # print path , r
             files.append(path % r)
+
         # if len(files) == 0:
         #     # print "GLOB", path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:]
         #     files = glob.glob(path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:])
 
-    elif not path.endswith(".mov"):
+    elif not path.endswith(".mov") and os.path.isfile(path):
         # print "NO"
         files = [orig_path]
     return files
@@ -442,7 +448,7 @@ def get_dest_files(read_node, dest_path):
         path = path.replace("###", "%03d")
     if "%" in path:
         for r in range(int(read_node['first']), int(read_node['last'])+1):
-            # print path , r, os.path.exists(path % r)
+            # print path , r
             files.append(path % r)
         # if len(files) == 0:
         #     # print "GLOB", path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:]
@@ -493,6 +499,7 @@ def get_dest_path(path):
     root_of_export = os.path.dirname(os.path.dirname(os.path.dirname(script_path)))
 
     dest_path = os.path.join(root_of_export, sub_path)
+    print "DEST PATH: %s" % (dest_path)
     return dest_path
 
 
@@ -568,6 +575,10 @@ def get_simple_dest_path(path):
     # hrj_0290/work/jason/nuke/renders/comp/hrj_0290_comp_v0004/hrj_0290_comp_v0004.%04d.exr
     # ELEMENTS/hrj_0290_graphics_territory_comp_v0004/hrj_0290_graphics_territory_comp_v0004.%04d.exr
     filename = os.path.basename(path)
+    if filename.endswith(".exr.exr"):
+        filename = filename.replace(".exr.exr", ".exr")
+    if filename.endswith("..exr"):
+        filename = filename.replace("..exr", ".exr")
     comp_filename = "E_%(shot)s_graphics_territory_%(label)s_%(version)s.%(ext_and_frame)s"
     comp_foldername = "E_%(shot)s_graphics_territory_%(label)s_%(version)s"
 
@@ -800,14 +811,28 @@ def basic_copy(sources, dests):
     for i in range(0, len(sources)):
         s = sources[i]
         d = dests[i]
+
         if "client_io" not in d:
             raise Exception("You are exporting outside of the client_io folder. What?")
-        print s, os.path.exists(s)
-        if os.path.exists(s) and not os.path.exists(d):
+        # print s, os.path.exists(s)
+        # print d, os.path.exists(d)
+        # print dest_folder, os.path.exists(dest_folder)
+        if os.path.exists(s):
             print os.path.basename(s), "-->", os.path.basename(d)
             if not os.path.exists(dest_folder):
                 os.makedirs(dest_folder)
-            copyfile(s, d)
+
+            # print os.path.exists(s), os.path.exists(dest_folder), os.path.exists(d)
+            # copy2(s, d)
+            p1 = subprocess.Popen(["copy", s, d], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # print "copy", s, os.path.basename(d)
+            output = p1.communicate()
+            # print output
+            if not "1 file(s) copied" in str(output):
+                print "copy", s, os.path.basename(d)
+                raise Exception(str(output))
+
+
         if not done and os.path.exists(d):
             done = True
     return done
