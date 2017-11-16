@@ -266,11 +266,11 @@ def fail_on_bad_read_nodes(all_nodes):
         if path == "":
             break
         first = 1
-        if 'first' in node.allKnobs():
-            f = int(node['first'].getValue())
+        if 'first' in node.knobs().keys():
+            first = int(node['first'].getValue())
         last = 1
-        if 'last' in node.allKnobs():
-            l = int(node['last'].getValue())
+        if 'last' in node.knobs().keys():
+            last = int(node['last'].getValue())
 
         message = "\n\nNode: %s\nFrames: %d -> %d\nFilename: %s" % (node.fullName(),
                                                                     first,

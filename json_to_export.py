@@ -46,7 +46,7 @@ def main():
         path_mapings.append(localise_read_node(node))
         i += 1
         print "%d/%d\n\n" % (i, len(read_nodes))
-
+    # check_all_passes_have_coppied(path_mapings)
     replace_reads(path_mapings)
     update_shotgun()
 
@@ -57,6 +57,10 @@ def main():
         os.remove(new_script_path)
     os.rename(get_localised_nuke_script(), new_script_path)
 
+# def check_all_passes_have_coppied():
+#     print "____________________________________"
+#     print "Checking All passes have copied"
+    
 
 
 def get_localised_nuke_script():
