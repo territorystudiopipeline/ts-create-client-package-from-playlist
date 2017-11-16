@@ -49,7 +49,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         deny_platforms = self.get_setting("deny_platforms")
 
         p = {
-            "title": "(Testing) Create Client package",
+            "title": "Create Client package",
 
             "deny_permissions": deny_permissions,
             "deny_platforms": deny_platforms,
@@ -181,10 +181,10 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
             if self.is_video(d['copy_path']):
                 self.copy_video(d, output_folder, preview)
             elif self.is_nuke_script(d['copy_path']):
-                nu_path = self.copy_nk(d, output_folder, preview)
+                nu_path = self.get_new_nk_path(d, output_folder, preview)
                 if nu_path:
-                    job_id = self.create_nuke_package_job(nu_path, d['id'])
-                    job_id = self.create_copy_job(nu_path, d['id'], job_id)
+                    job_id = self.create_nuke_package_job(playlist, d['copy_path'], nu_path, d['id'])
+                    job_id = self.create_copy_job(playlist, nu_path, d['id'], job_id)
 
     def is_video(self, path):
         return os.path.splitext(path)[1].lower() in video_exts
@@ -212,7 +212,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
                 self.log_exception("MISSING FILE: " + str(src))
                 self.movs_missing.add(src)
 
-    def copy_nk(self, published_file, output_folder, preview):
+    def get_new_nk_path(self, published_file, output_folder, preview):
         src = published_file['copy_path']
         self.all_nks.add(src)
         dest_folder = os.path.join(output_folder,
@@ -222,20 +222,18 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
             os.makedirs(dest_folder)
         nu_path = os.path.join(dest_folder, os.path.basename(src))
 
-
-    
         if os.path.exists(src):
-            if not preview:
-                if os.path.exists(nu_path):
-                    os.remove(nu_path)
-                copy(src, nu_path)
-                self.nks_copied.add(src)
-                return nu_path
+            # if not preview:
+            #     if os.path.exists(nu_path):
+            #         os.remove(nu_path)
+            #     copy(src, nu_path)
+            #     self.nks_copied.add(src)
+            return nu_path
         else:
             self.log_exception("MISSING FILE: " + str(src))
             self.nks_missing.add(src)
 
-    def create_copy_job(self, nuke_script, id, previous_job_id):
+    def create_copy_job(self, playlist, nuke_script, id, previous_job_id):
         d_path = "/Applications/Thinkbox/Deadline8/Resources/deadlinecommand"
         python_exe = '"Y:\__pipeline\software\python\windows_nt\\2.7\python.exe"'
         current_folder = os.path.dirname(os.path.realpath(__file__))
@@ -249,7 +247,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         nuke_script = nuke_script.replace("/", "\\\\")
 
         args = '%s' % (python_script)
-        job_name = "Export Nuke Script for Client (job 2/2): %s" % nuke_script.split("\\")[-1]
+        job_name = "%s %s (export job 2/2)" % (playlist['code'], nuke_script.split("\\")[-1])
         cmd = '%s -SubmitCommandLineJob' % d_path
         cmd += ' -executable %s' % python_exe
         cmd += ' -arguments "%s"' % args
@@ -264,7 +262,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         job_id = re.findall('.*JobID=(.+)\\n.*', out)[0]
         return job_id
 
-    def create_nuke_package_job(self, nuke_script, id):
+    def create_nuke_package_job(self, playlist, src_nuke_script, dest_nuke_script, id):
         d_path = "/Applications/Thinkbox/Deadline8/Resources/deadlinecommand"
         nuke_exe = '"C:\\Program Files\\Nuke10.5v4\\Nuke10.5.exe"'
         current_folder = os.path.dirname(os.path.realpath(__file__))
@@ -273,23 +271,28 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         nuke_python_script = nuke_python_script.replace("/Volumes/projects/", "\\\\\\\\ldn-fs1\\\\projects\\\\")
         nuke_python_script = nuke_python_script.replace("/", "\\\\")
 
-        nuke_script = nuke_script.replace("/Volumes/FilmShare/", "\\\\\\\\192.168.50.10\\\\filmshare\\\\")
-        nuke_script = nuke_script.replace("/Volumes/projects/", "\\\\\\\\ldn-fs1\\\\projects\\\\")
-        nuke_script = nuke_script.replace("/", "\\\\")
+        src_nuke_script = src_nuke_script.replace("/Volumes/FilmShare/", "\\\\\\\\192.168.50.10\\\\filmshare\\\\")
+        src_nuke_script = src_nuke_script.replace("/Volumes/projects/", "\\\\\\\\ldn-fs1\\\\projects\\\\")
+        src_nuke_script = src_nuke_script.replace("/", "\\\\")
+
+        dest_nuke_script = dest_nuke_script.replace("/Volumes/FilmShare/", "\\\\\\\\192.168.50.10\\\\filmshare\\\\")
+        dest_nuke_script = dest_nuke_script.replace("/Volumes/projects/", "\\\\\\\\ldn-fs1\\\\projects\\\\")
+        dest_nuke_script = dest_nuke_script.replace("/", "\\\\")
 
         args = '-t %s' % (nuke_python_script)
-        job_name = "Export Nuke Script for Client (job 1/2): %s" % nuke_script.split("\\")[-1]
+        job_name = "%s %s (export job 1/2)" % (playlist['code'], src_nuke_script.split("\\")[-1])
         cmd = '%s -SubmitCommandLineJob' % d_path
         cmd += ' -executable %s' % nuke_exe
         cmd += ' -arguments "%s"' % args
         cmd += ' -frames 1  -prop LimitGroups=nuker -pool pipeline -priority 55 -name "%s"' % job_name
-        cmd += ' -prop "EnvironmentKeyValue0=SCRIPT=%s"' % (nuke_script)
-        cmd += ' -prop "EnvironmentKeyValue1=SHOTGUN_PUBLISHED_FILE_ID=%s"' % (id)
-        cmd += ' -prop "EnvironmentKeyValue2=NUKE_PATH=\\\\\\\\ldn-fs1\\\\projects\\\\dng02_mae\\\\__pipeline\\\\configs\\\\nuke\\\\dotNuke_170928;\\\\\\\\ldn-fs1\\\\projects\\\\__pipeline\\\\configs\\\\nuke\\\\dotNuke_170928"'
-        cmd += ' -prop "EnvironmentKeyValue3=PYTHONPATH=\\\\\\\\ldn-fs1\\\\projects\\\\dng02_mae\\\\_shotgun\\\\install\\\\core\\\\python"'
+        cmd += ' -prop "EnvironmentKeyValue0=SCRIPT=%s"' % (dest_nuke_script)
+        cmd += ' -prop "EnvironmentKeyValue1=SOURCE_SCRIPT=%s"' % (src_nuke_script)
+        cmd += ' -prop "EnvironmentKeyValue2=SHOTGUN_PUBLISHED_FILE_ID=%s"' % (id)
+        cmd += ' -prop "EnvironmentKeyValue3=NUKE_PATH=\\\\\\\\ldn-fs1\\\\projects\\\\dng02_mae\\\\__pipeline\\\\configs\\\\nuke\\\\dotNuke_170928;\\\\\\\\ldn-fs1\\\\projects\\\\__pipeline\\\\configs\\\\nuke\\\\dotNuke_170928"'
+        cmd += ' -prop "EnvironmentKeyValue4=PYTHONPATH=\\\\\\\\ldn-fs1\\\\projects\\\\dng02_mae\\\\_shotgun\\\\install\\\\core\\\\python"'
                                                         
         out = sub.check_output(cmd, shell=True)
-        self.nks_submitted_for_export.add(nuke_script)
+        self.nks_submitted_for_export.add(src_nuke_script)
         job_id = re.findall('.*JobID=(.+)\\n.*', out)[0]
         return job_id
 

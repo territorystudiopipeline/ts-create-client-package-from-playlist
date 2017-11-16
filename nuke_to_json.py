@@ -13,6 +13,7 @@ import json
 import traceback
 import glob
 import cryptomatte_utilities as cu
+from shutil import copy2
 
 new_lighting_pass_file_name = "E_%(shot)s_graphics_territory_lgt_%(element)s_%(desc)s_%(pass)s_%(version)s.%04d.%(ext)s"
 
@@ -37,34 +38,19 @@ report_str = "Warnings:\n"
 
 def main():
     global report_str
+    copy_script()
     open_script()
     read_nodes = get_valid_read_nodes()
     export_to_json(read_nodes)
 
 
-    print "ATTEMPTING TO CLEAR CACHE"
-    print "ATTEMPTING TO CLEAR CACHE"
-    print "ATTEMPTING TO CLEAR CACHE"
-    print "ATTEMPTING TO CLEAR CACHE"
-    print "ATTEMPTING TO CLEAR CACHE"
+    # print "ATTEMPTING TO CLEAR CACHE"
     nukescripts.cache_clear("")
-    print "CLEARTED CACHE"
-    print "CLEARTED CACHE"
-    print "CLEARTED CACHE"
-    print "CLEARTED CACHE"
-    print "CLEARTED CACHE"
+    # print "CLEARTED CACHE"
 
-    print "ATTEMPTING TO CLOSE SCRIPT"
-    print "ATTEMPTING TO CLOSE SCRIPT"
-    print "ATTEMPTING TO CLOSE SCRIPT"
-    print "ATTEMPTING TO CLOSE SCRIPT"
-    print "ATTEMPTING TO CLOSE SCRIPT"
+    # print "ATTEMPTING TO CLOSE SCRIPT"
     nuke.scriptClose()
-    print "CLOSED SCRIPT"
-    print "CLOSED SCRIPT"
-    print "CLOSED SCRIPT"
-    print "CLOSED SCRIPT"
-    print "CLOSED SCRIPT"
+    # print "CLOSED SCRIPT"
 
     # report_str += "\nExport History:\n"
     # path_mapings = []
@@ -74,29 +60,21 @@ def main():
     # replace_reads(path_mapings)
     # update_shotgun()
 
+def copy_script():
+    src = get_src_nuke_script()
+    dst = get_nuke_script()
+    # print src, ">>>>>>>", dst
+    if os.path.exists(dst):
+        os.remove(dst)
+    copy2(src,dst)
 
 def export_to_json(nodes):
-    print "STARTING JSON DUMP"
-    print "STARTING JSON DUMP"
-    print "STARTING JSON DUMP"
-    print "STARTING JSON DUMP"
-    print "STARTING JSON DUMP"
-    print "STARTING JSON DUMP"
-    print "STARTING JSON DUMP"
-    print "STARTING JSON DUMP"
+    # print "STARTING JSON DUMP"
     json_data = get_json_data(nodes)
-    json_path = os.path.join(os.path.dirname(get_nuke_script()), "valid_nodes.json")
+    json_path = os.path.join(os.path.dirname(get_nuke_script()), get_nuke_script() + "_valid_nodes.json")
     with open(json_path, 'w') as outfile:
         json.dump(json_data, outfile)
-    print "FINISHING JSON DUMP"
-    print "FINISHING JSON DUMP"
-    print "FINISHING JSON DUMP"
-    print "FINISHING JSON DUMP"
-    print "FINISHING JSON DUMP"
-    print "FINISHING JSON DUMP"
-    print "FINISHING JSON DUMP"
-    print "FINISHING JSON DUMP"
-    print "FINISHING JSON DUMP"
+    # print "FINISHING JSON DUMP"
 
 
 def get_json_data(nodes):
@@ -126,64 +104,37 @@ def open_script():
     script = get_nuke_script()
     global_version = get_version_str(script)
 
-    print "START OPENING"
-    print "START OPENING"
-    print "START OPENING"
-    print "START OPENING"
-    print "START OPENING"
-    print "START OPENING"
-    print "START OPENING"
-    print "START OPENING"
+    # print "START OPENING"
     nuke.scriptReadFile(script)
-    print "FINISH OPENING"
-    print "FINISH OPENING"
-    print "FINISH OPENING"
-    print "FINISH OPENING"
-    print "FINISH OPENING"
-    print "FINISH OPENING"
-    print "FINISH OPENING"
-    print "FINISH OPENING"
-    print "-----------------decryptomatte----starting-----------"
+    # print "FINISH OPENING"
+    # print "-----------------delete-xreads----starting-----------"
+    delete_x_reads()
+    # print "-----------------delete-xreads----finished----------"
+    # print "-----------------decryptomatte----starting-----------"
     cu.decryptomatte_all()
-    print "-----------------decryptomatte----finished----------"
-    print "-----------------convertGizmosToGroups----starting-----------"
+    # print "-----------------decryptomatte----finished----------"
+    # print "-----------------convertGizmosToGroups----starting-----------"
     bakeGizmos()
-    print "-----------------convertGizmosToGroups----finished----------"
+    # print "-----------------convertGizmosToGroups----finished----------"
     s = nuke.root()
     s.knob('project_directory').setValue("[file dirname [value root.name]]")
     nu_script = script[:-3] + "_localised.nk"
     if os.path.exists(nu_script):
         os.remove(nu_script)
     try:
-        print "START SAVING"
-        print "START SAVING"
-        print "START SAVING"
-        print "START SAVING"
-        print "START SAVING"
-        print "START SAVING"
-        print "START SAVING"
-        print "START SAVING"
+        # print "START SAVING"
         nuke.scriptSaveAs(nu_script)
-        print "COMPLETED SAVING"
-        print "COMPLETED SAVING"
-        print "COMPLETED SAVING"
-        print "COMPLETED SAVING"
-        print "COMPLETED SAVING"
-        print "COMPLETED SAVING"
-        print "COMPLETED SAVING"
-        print "COMPLETED SAVING"
-    except Exception as e:
-        print "ERROR WHILE SAVING"
-        print "ERROR WHILE SAVING"
-        print "ERROR WHILE SAVING"
-        print "ERROR WHILE SAVING"
-        print "ERROR WHILE SAVING"
-        print "ERROR WHILE SAVING"
-        print "ERROR WHILE SAVING"
-        print "ERROR WHILE SAVING"
+        # print "COMPLETED SAVING"
+    except Exception:
+        pass
+        # print "ERROR WHILE SAVING"
 
 
-
+def delete_x_reads():
+    classes = ["Read", "ReadGeo", "ReadGeo2", "Camera", "Camera2"]
+    for node in get_all_nodes():
+        if node['name'].getValue().startswith("x_") and node.Class() in classes:
+            nuke.delete(node)
 
 # def replace_reads(mappings):
 #     script_path = get_nuke_script()
@@ -243,30 +194,30 @@ def open_script():
 #     new_data = {'sg_notes' : publish_file['sg_notes'] + [note]}
 #     sgc.update("PublishedFile",int(pub_id), new_data)
 
-def check_missmatching_versions(read_nodes):
-    paths = {}
+# def check_missmatching_versions(read_nodes):
+#     paths = {}
 
-    for node in read_nodes:
-        path = get_read_node_path(node)
-        path = os.path.basename(path)
-        if not is_ingest(path):
-            path_without_version = get_path_without_version(path)
-            if path_without_version not in paths:
-                paths[path_without_version] = {path: [node]}
-            elif path in paths[path_without_version].keys():
-                paths[path_without_version][path].append(node)
-            else:
-                paths[path_without_version][path] = [node]
-    e_str = ""
-    for path in paths.keys():
-        if len(paths[path]) != 1:
-            for p in paths[path]:
-                for n in paths[path][p]:
-                    e_str += " %s," % n.name()
-                e_str = e_str[:-1] + " %s\n" % (p)
-    if e_str != "":
-        e_str = "Multiple versions of the same element are being used in this script.\n" + e_str
-        raise Exception(e_str)
+#     for node in read_nodes:
+#         path = get_read_node_path(node)
+#         path = os.path.basename(path)
+#         if not is_ingest(path):
+#             path_without_version = get_path_without_version(path)
+#             if path_without_version not in paths:
+#                 paths[path_without_version] = {path: [node]}
+#             elif path in paths[path_without_version].keys():
+#                 paths[path_without_version][path].append(node)
+#             else:
+#                 paths[path_without_version][path] = [node]
+#     e_str = ""
+#     for path in paths.keys():
+#         if len(paths[path]) != 1:
+#             for p in paths[path]:
+#                 for n in paths[path][p]:
+#                     e_str += " %s," % n.name()
+#                 e_str = e_str[:-1] + " %s\n" % (p)
+#     if e_str != "":
+#         e_str = "Multiple versions of the same element are being used in this script.\n" + e_str
+#         raise Exception(e_str)
 
 
 def get_path_without_version(path):
@@ -280,6 +231,10 @@ def get_path_without_version(path):
 
 def get_nuke_script():
     script = localise_path(os.environ.get("SCRIPT"))
+    return script
+
+def get_src_nuke_script():
+    script = localise_path(os.environ.get("SOURCE_SCRIPT"))
     return script
 
 
@@ -298,28 +253,145 @@ def localise_path(path):
 
 def get_valid_read_nodes():
     global report_str
-    valid_nodes = []
     all_nodes = get_all_read_nodes()
+    fail_on_bad_read_nodes(all_nodes)
+    return all_nodes
+
+
+def fail_on_bad_read_nodes(all_nodes):
+    error_messages = []
+    mappings = {}
     for node in all_nodes:
-        if is_enabled(node):
-            if not has_files(node):
-                r = "Missing Files: '%s'\n" % get_read_node_path(node)
-                print r
-                report_str += r
+        path = node['file'].getValue()
+        if path == "":
+            break
+        first = 1
+        if 'first' in node.allKnobs():
+            f = int(node['first'].getValue())
+        last = 1
+        if 'last' in node.allKnobs():
+            l = int(node['last'].getValue())
 
-            valid_nodes.append(node)
-    # check_missmatching_versions(valid_nodes)
-    return valid_nodes
+        message = "\n\nNode: %s\nFrames: %d -> %d\nFilename: %s" % (node.fullName(),
+                                                                    first,
+                                                                    last,
+                                                                    path)
+        error = ""
+        if not get_shot_name(os.path.basename(path)):
+            error += "\nERROR: NO SHOT NAME IN FILENAME"
+        if missing_files(node, first, last):
+            error += "\nERROR: MISSING FILES"
+        if path.lower().endswith(".mov"):
+            error += "\nERROR: DO NOT READ IN QUICKTIMES"
+        if get_version_str(path) is None:
+            error += "\nERROR: NO VERSION NUMBER IN FILENAME"
+        if is_lyt(path):
+            error += "\nERROR: DO NOT USE LAYOUT IN YOUR SCRIPT"
+        if is_camera(path) and not is_for_this_shot(path):
+            error += "\nERROR: NOT THE CAMERA FOR THIS SHOT"
+        if is_disp_map(path) and not is_for_this_shot(path):
+            error += "\nERROR: NOT THE DISP MAP FOR THIS SHOT"
+
+        src = node['file'].getValue()
+        dst = get_dest_path(src)
+        if src not in mappings.keys():
+            if dst in mappings.values():
+                error += "\nERROR: CLASHING WITH ANOTHER FILENAME"
+                for s, d in mappings.iteritems():
+                    if d == dst:
+                        error += "\n--> %s" % s
+            mappings[src] = dst
+
+        if error != "":
+            message += error
+            error_messages.append(message)
+
+    shotgun_frame_range = get_shotgun_frame_range()
+    scene_frame_range = get_scene_frame_range()
+    if shotgun_frame_range != scene_frame_range:
+        message = "\nERROR: NUKE SCRIPT HAS INCORRECT FRAME RANGE"
+        message += "\nIn the script: %d -> %d" % (scene_frame_range[0], scene_frame_range[1])
+        message += "\nOn Shotgun:  %d -> %d" % (shotgun_frame_range[0], shotgun_frame_range[1])
+        error_messages.append(message)
+
+    if len(error_messages) != 0:
+        r = range(0, 33)
+        for i in r:
+            print "-" * i
+        print "----------ARTIST ERRORS----------"
+        for message in error_messages:
+            print message
+            print "- - - - - - - - -"
+        print "---------------------------------"
+        r.reverse()
+        for i in r:
+            print "-" * i
+        raise Exception("Kickback To Artist %s" % get_src_nuke_script())
+    return all_nodes
 
 
-def has_files(node):
+def is_lyt(path):
+    return "_lyt_" in os.path.basename(path).lower()
+
+
+def is_for_this_shot(path):
+    path_shotname = get_shot_name(os.path.basename(path)).lower()
+    script_shotname = get_shot_name(os.path.basename(get_nuke_script())).lower()
+    return path_shotname == script_shotname
+
+
+def is_disp_map(path):
+    return "_disp_map_" in os.path.basename(path).lower()
+
+
+def get_scene_frame_range():
+    return nuke.toNode("root")["first_frame"].getValue(), nuke.toNode("root")["last_frame"].getValue()
+
+
+def get_shotgun_frame_range():
+    sgc = get_shotgun_connection()
+    shotname = get_shot_name(os.path.basename(get_nuke_script()))
+    lower_case_shot = sgc.find_one("Shot", [['project.Project.id', 'is', 186], ['code', 'is', shotname.lower()]], ["sg_ts_head_in", "sg_ts_tail_out"])
+    if lower_case_shot:
+        return lower_case_shot["sg_ts_head_in"], lower_case_shot["sg_ts_tail_out"]
+    upper_case_shot = sgc.find_one("Shot", [['project.Project.id', 'is', 186], ['code', 'is', shotname.upper()]], ["sg_ts_head_in", "sg_ts_tail_out"])
+    if upper_case_shot:
+        return upper_case_shot["sg_ts_cut_in"], upper_case_shot["sg_ts_tail_out"]
+
+
+def get_shotgun_connection():
+    # Instantiate the CoreDefaultsManager. This allows the ShotgunAuthenticator to
+    # retrieve the site, proxy and optional script_user credentials from shotgun.yml
+    cdm = sgtk.util.CoreDefaultsManager()
+
+    # Instantiate the authenticator object, passing in the defaults manager.
+    authenticator = ShotgunAuthenticator(cdm)
+
+    # Create a user programmatically using the script's key.
+    user = authenticator.create_script_user(
+        api_script="toolkit_scripts",
+        api_key="09d648cbb268019edefd1db3f1a8d8ea011c354326f23f24d13c477d75306810"
+    )
+    # print "User is '%s'" % user
+
+    # Tells Toolkit which user to use for connecting to Shotgun.
+    sgtk.set_authenticated_user(user)
+    sgc = sg.create_sg_connection()
+    return sgc
+
+
+
+def missing_files(node, first, last):
     has_files = False
     all_files = get_source_files(node)
+    expected_len = last + 1 - first
+    if len(all_files) != expected_len and ("%" in node['file'].getValue() or "#" in node['file'].getValue()):
+        return True
     for file in all_files:
         f = localise_path(file)
-        if os.path.exists(f):
-            has_files = True
-    return has_files
+        if not os.path.exists(f):
+            return True
+    return False
 
 
 def get_all_read_nodes():
@@ -327,9 +399,8 @@ def get_all_read_nodes():
     nodes = []
     for node in get_all_nodes():
         if (not node['name'].getValue().startswith("x_") and
-                node.Class() in classes and
-                get_read_node_path(node).strip() != "" and not
-                os.path.isdir(get_read_node_path(node))):
+                node.Class() in classes and 
+                is_enabled(node)):
             nodes.append(node)
     return nodes
 
@@ -479,17 +550,9 @@ def get_source_files(read_node):
     if "###" in path:
         path = path.replace("###", "%03d")
     if "%" in path:
-        # print "YES"
-        
         for r in range(int(read_node['first'].getValue()), int(read_node['last'].getValue())+1):
-            print path , r
             files.append(path % r)
-        # if len(files) == 0:
-        #     print "globbing", path 
-        #     files = glob.glob(path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:])
-
-    else:
-        # print "NO"
+    elif os.path.isfile(orig_path):
         files = [orig_path]
     return files
 
@@ -500,31 +563,42 @@ def is_sequence(path):
 
 
 def get_dest_path(path):
-    sub_path = None
-    if is_quicktime(path):
-        sub_path = get_qt_dest_path(path)
-    elif is_comp(path):
-        sub_path = get_simple_dest_path(path)
-    elif is_precomp(path):
-        sub_path = get_simple_dest_path(path)
-    elif is_lighting(path):
-        sub_path = get_lighting_dest_path(path)
-    elif is_geo(path):
-        sub_path = get_geo_dest_path(path)
+    sub_path = get_simple_dest_path(path)
+    # if is_quicktime(path):
+    #     sub_path = get_qt_dest_path(path)
+    # el
+
+
+    # if is_comp(path):
+    #     sub_path = get_simple_dest_path(path)
+    # elif is_precomp(path):
+    #     sub_path = get_simple_dest_path(path)
+    # elif is_lighting(path):
+    #     sub_path = get_lighting_dest_path(path)
+    # if is_geo(path):
+    #     sub_path = get_geo_dest_path(path)
+
+
     # elif is_camera(path):
     #     sub_path = get_camera_dest_path(path)
     # elif is_ingest(path):
     #     sub_path = get_ingest_dest_path(path)
 
+    # if special_rename(path):
+    #     sub_path = special_rename(path)
+    # el
     if not sub_path:
         sub_path = get_non_rename_dest_path(path)
 
+
     sub_path = sub_path.replace("__", "_")
     script_path = get_nuke_script()
-    root_of_export = os.path.dirname(os.path.dirname(script_path))
+    root_of_export = os.path.dirname(os.path.dirname(os.path.dirname(script_path)))
 
     dest_path = os.path.join(root_of_export, sub_path)
+    # print "DEST PATH: %s" % (dest_path)
     return dest_path
+
 
 
 def get_non_rename_dest_path(path):
@@ -574,28 +648,78 @@ def get_simple_dest_path(path):
     # hrj_0290/work/jason/nuke/renders/comp/hrj_0290_comp_v0004/hrj_0290_comp_v0004.%04d.exr
     # ELEMENTS/hrj_0290_graphics_territory_comp_v0004/hrj_0290_graphics_territory_comp_v0004.%04d.exr
     filename = os.path.basename(path)
+    if filename.endswith(".exr.exr"):
+        filename = filename.replace(".exr.exr", ".exr")
+    if filename.endswith("..exr"):
+        filename = filename.replace("..exr", ".exr")
     comp_filename = "E_%(shot)s_graphics_territory_%(label)s_%(version)s.%(ext_and_frame)s"
     comp_foldername = "E_%(shot)s_graphics_territory_%(label)s_%(version)s"
+
     dic = {"shot": get_shot_name(filename),
-           "label": get_label(filename),
+           "label": get_simple_label(filename),
            "ext_and_frame": get_ext_and_frame(filename),
            "version": get_rename_version_str(path)}
-    if None in dic.values():
-        return None
+
+    if dic['shot'] == None:
+        dic['shot'] = get_shot_name(get_nuke_script())
+
     new_filename = comp_filename % dic
+    new_filename = remove_double_spaces(new_filename, preference=".")
     new_foldername = comp_foldername % dic
-    new_sub_path = os.path.join("ELEMENTS", new_foldername, new_filename)
+    new_foldername = remove_double_spaces(new_foldername, preference="_")
+
+    if new_filename.endswith(".abc"):
+        new_sub_path = os.path.join(dic['shot'].upper(), "GEOM", "GCH" + new_foldername[1:], "GCH" + new_filename[1:])
+    else:
+        new_sub_path = os.path.join(dic['shot'].upper(), "ELEMENTS", new_foldername, new_filename)
     return new_sub_path
 
 
+def get_simple_label(filename):
+    # label = filename.lower()
+    label = filename
+    if get_shot_name(label):
+        label = label.replace(get_shot_name(label), "")
+    label = label.replace(get_rename_version_str(label), "")
+    label = label.replace(get_ext_and_frame(label), "")
+    label = label.replace("_lgt_", "")
+    label = label.replace("_LGT_", "")
+    label = label.replace("_lyt_", "_")
+    label = label.replace("_LYT_", "_")
+    if label.lower().startswith("e_"):
+        label = label[2:]
+    # if label.startswith("s_"):
+    #     label = label[2:]
+    if label.lower().startswith("ghc_"):
+        label = label[4:]
+    if label.lower().startswith("lyt_"):
+        label = label[4:]
+    if label.lower().startswith("lgt_"):
+        label = label[4:]
+    label = label.replace(" ", "_")
+    label = remove_double_spaces(label, "_")
+    label = remove_double_spaces(label, "_")
+    return label
+
+
+def remove_double_spaces(filename, preference=None):
+    for a in ['-', '_', '.']:
+        for aa in ['-', '_', '.']:
+            f = a + aa
+            r = aa
+            if preference and preference in f:
+                r = preference
+            filename = filename.replace(f, r)
+        filename = filename.strip(a)
+    return filename
+
 def get_shot_name(path):
     global report_str
+    # print path
     regex = re.compile("([a-zA-Z]{3}_[0-9]{4})", re.IGNORECASE)
     shot_search = re.search(regex, path)
-    if len(shot_search.groups()) == 1:
+    if shot_search and len(shot_search.groups()) == 1:
         return shot_search.group(1)
-    else:
-        report_str += "Could not find shotname in: %s\n"
 
 
 def get_label(path):
@@ -641,13 +765,18 @@ def get_rename_version_str(path):
 
 
 def get_version_str(path):
-    regex = re.compile("(v\d+)", re.IGNORECASE)
+    regex = re.compile(".*[-._ ](v\d+)[ -._].*", re.IGNORECASE)
     version_search = re.search(regex, path)
-    if len(version_search.groups()) == 1:
+    if version_search and len(version_search.groups()) == 1:
         version_str = version_search.group(1)
         return version_str
-    else:
-        raise Exception("Could not find version str in: %s" % (path))
+    regex = re.compile(".*[-._](s\d+)[-._].*", re.IGNORECASE)
+    version_search = re.search(regex, path)
+    if version_search and len(version_search.groups()) == 1:
+        version_str = version_search.group(1)
+        if version_str not in [None, '']:
+            version_str = 'v' + version_str[1:]
+        return version_str
 
 
 def get_ingest_dest_path(path):
@@ -849,12 +978,12 @@ def bakeGizmo(gizmo):
     copy gizmo to group and replace it in the tree, so all inputs and outputs use the new group.
     returns the new group node
     '''
-    print "start baking"
+    # print "start baking"
     try:
         parent = getParent(gizmo)
     except Exception as e:
-        print e
-        print "Cannot get parent"
+        # print e
+        # print "Cannot get parent"
         return
     groupName = nuke.tcl(
         'global no_gizmo; set no_gizmo 1; in %s {%s -New} ; return [value [stack 0].name]' % (parent.fullName(), gizmo.Class()))
@@ -876,7 +1005,7 @@ def bakeGizmo(gizmo):
     nuke.delete(gizmo)
     group.setName(gizmoName)
 
-    print "end baking"
+    # print "end baking"
     # return group
 
 
@@ -889,33 +1018,35 @@ def bakeGizmos(topLevel=nuke.root(), excludeDefaults=False):
             if isGizmo(n):
                gs.append(n)
         except Exception as e:
-            print "x=x=x=x=x Exception", str(e)
+            pass
+            # print "x=x=x=x=x Exception", str(e)
     for n in gs:
         name = n['name'].getValue()
-        print "---------| we will be looking at %s |---------" % name
+        # print "---------| we will be looking at %s |---------" % name
     for n in gs:
-        print "---------| new loop %s|---------"
+        # print "---------| new loop %s|---------"
         name = n['name'].getValue()
-        print "---------| looking at %s |---------" % name
+        # print "---------| looking at %s |---------" % name
 
         try:
 
             if isGizmo(n):
                 # if not gizmoIsDefault(n):
                 #     # ALWAYS BAKE CUSTOM GIZMOS
-                print "---------| starting bake %s |---------" % name
+                # print "---------| starting bake %s |---------" % name
                 bakeGizmo(n)
-                print "---------| finish bake %s |---------" % name
+                # print "---------| finish bake %s |---------" % name
 
                 # elif not excludeDefaults:
                 #     # BAKE NON-DEFAULT GIZMOS IF REQUESTED
-                #     print "---------| starting bake %s |---------" % name
+                    # print "---------| starting bake %s |---------" % name
                 #     bakeGizmo(n)
-                #     print "---------| finish bake %s |---------" % name
+                    # print "---------| finish bake %s |---------" % name
         except Exception as e:
-            print "x-x-x-x-x Exception", str(e)
-            traceback.print_tb(e.__traceback__)
-        print "---------| end of loop |---------"
+            pass
+            # print "x-x-x-x-x Exception", str(e)
+            # traceback.print_tb(e.__traceback__)
+        # print "---------| end of loop |---------"
 
 
 

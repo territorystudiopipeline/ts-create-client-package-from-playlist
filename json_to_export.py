@@ -46,13 +46,27 @@ def main():
         path_mapings.append(localise_read_node(node))
         i += 1
         print "%d/%d\n\n" % (i, len(read_nodes))
+
     replace_reads(path_mapings)
     update_shotgun()
 
+    new_script_path = get_new_nuke_script()
+    os.remove(get_nuke_script())
+    os.remove(get_json_path())
+    if os.path.exists(new_script_path):
+        os.remove(new_script_path)
+    os.rename(get_localised_nuke_script(), new_script_path)
 
-def replace_reads(mappings):
+
+
+def get_localised_nuke_script():
     script_path = get_nuke_script()
     nu_script = script_path[:-3] + "_localised.nk"
+    return nu_script
+
+
+def replace_reads(mappings):
+    nu_script = get_localised_nuke_script()
     filedata = ""
     # Read in the file
     with open(nu_script, 'r') as file:
@@ -68,13 +82,13 @@ def replace_reads(mappings):
         mapping[1] = mapping[1].replace("\\", "/")
         if "ELEMENTS" in mapping[1]:
             mapping[1] = "../../%s/ELEMENTS%s" % (mapping[1].split("ELEMENTS")[0].split("/")[-2],
-                                                mapping[1].split("ELEMENTS")[1])
+                                                  mapping[1].split("ELEMENTS")[1])
         if "GEOM" in mapping[1]:
             mapping[1] = "../../%s/GEOM%s" % (mapping[1].split("GEOM")[0].split("/")[-2],
-                                            mapping[1].split("GEOM")[1])
+                                              mapping[1].split("GEOM")[1])
         if "VIDREF" in mapping[1]:
             mapping[1] = "../../%s/VIDREF%s" % (mapping[1].split("VIDREF")[0].split("/")[-2],
-                                              mapping[1].split("VIDREF")[1])
+                                                mapping[1].split("VIDREF")[1])
         for drive in ["Y:", "A:"]:
             mapping0 = mapping[0]
             mapping1 = mapping[1]
@@ -120,12 +134,6 @@ def replace_reads(mappings):
     with open(nu_script, 'w') as file:
         file.write(filedata)
 
-    new_script_path = get_new_nuke_script()
-    os.remove(get_nuke_script())
-    os.remove(get_json_path())
-    if os.path.exists(new_script_path):
-        os.remove(new_script_path)
-    os.rename(nu_script, new_script_path)
 
 
 
@@ -242,7 +250,7 @@ def get_json_data():
 
 
 def get_json_path():
-    return os.path.join(os.path.dirname(get_nuke_script()), "valid_nodes.json")
+    return os.path.join(os.path.dirname(get_nuke_script()), get_nuke_script() + "_valid_nodes.json")
 
 
 def get_valid_read_nodes():
