@@ -264,7 +264,7 @@ def fail_on_bad_read_nodes(all_nodes):
     for node in all_nodes:
         path = node['file'].getValue()
         if path == "":
-            break
+            continue
         first = 1
         if 'first' in node.knobs().keys():
             first = int(node['first'].getValue())
@@ -279,8 +279,6 @@ def fail_on_bad_read_nodes(all_nodes):
         error = ""
         if not get_shot_name(os.path.basename(path)):
             error += "\nERROR: NO SHOT NAME IN FILENAME"
-        if missing_files(node, first, last):
-            error += "\nERROR: MISSING FILES"
         if path.lower().endswith(".mov"):
             error += "\nERROR: DO NOT READ IN QUICKTIMES"
         if get_version_str(path) is None:
@@ -291,16 +289,21 @@ def fail_on_bad_read_nodes(all_nodes):
             error += "\nERROR: NOT THE CAMERA FOR THIS SHOT"
         if is_disp_map(path) and not is_for_this_shot(path):
             error += "\nERROR: NOT THE DISP MAP FOR THIS SHOT"
+        if bad_path(path):
+            error += "\nERROR: BAD PATH"
+        else:
+            if missing_files(node, first, last):
+                error += "\nERROR: MISSING FILES"
 
-        src = node['file'].getValue()
-        dst = get_dest_path(src)
-        if src not in mappings.keys():
-            if dst in mappings.values():
-                error += "\nERROR: CLASHING WITH ANOTHER FILENAME"
-                for s, d in mappings.iteritems():
-                    if d == dst:
-                        error += "\n--> %s" % s
-            mappings[src] = dst
+            src = node['file'].getValue()
+            dst = get_dest_path(src)
+            if src not in mappings.keys():
+                if dst in mappings.values():
+                    error += "\nERROR: CLASHING WITH ANOTHER FILENAME"
+                    for s, d in mappings.iteritems():
+                        if d == dst:
+                            error += "\n--> %s" % s
+                mappings[src] = dst
 
         if error != "":
             message += error
@@ -314,7 +317,9 @@ def fail_on_bad_read_nodes(all_nodes):
         message += "\nOn Shotgun:  %d -> %d" % (shotgun_frame_range[0], shotgun_frame_range[1])
         error_messages.append(message)
 
-    if len(error_messages) != 0:
+    if len(error_messages) == 0:
+        print "Passed Error Checking!"
+    else:
         r = range(0, 33)
         for i in r:
             print "-" * i
@@ -328,6 +333,26 @@ def fail_on_bad_read_nodes(all_nodes):
             print "-" * i
         raise Exception("Kickback To Artist %s" % get_src_nuke_script())
     return all_nodes
+
+
+def bad_path(path):
+    if "######" in path:
+        path = path.replace("######", "%06d")
+    if "#####" in path:
+        path = path.replace("#####", "%05d")
+    if "####" in path:
+        path = path.replace("####", "%04d")
+    if "###" in path:
+        path = path.replace("###", "%03d")
+    if path.count("%") == 0:
+        return False
+    if path.count("%") > 1:
+        return True
+    if path.count("%") == 1:
+        rhs = path.split("%")[1]
+        if not re.match("\d\dd\..{3,4}$", rhs):
+            return True
+    return False
 
 
 def is_lyt(path):
@@ -391,6 +416,8 @@ def missing_files(node, first, last):
         f = localise_path(file)
         if not os.path.exists(f):
             return True
+    if len(all_files) == 0:
+        return True
     return False
 
 
@@ -398,10 +425,15 @@ def get_all_read_nodes():
     classes = ["Read", "ReadGeo", "ReadGeo2", "Camera", "Camera2"]
     nodes = []
     for node in get_all_nodes():
+
         if (not node['name'].getValue().startswith("x_") and
-                node.Class() in classes and 
+                node.Class() in classes and
                 is_enabled(node)):
-            nodes.append(node)
+            path = get_read_node_path(node)
+            if os.path.basename(path) == "jaeger_colours_v0002.jpg":
+                node['name'].setValue("x_" + node['name'].getValue())
+            else:
+                nodes.append(node)
     return nodes
 
 

@@ -46,7 +46,7 @@ def main():
         path_mapings.append(localise_read_node(node))
         i += 1
         print "%d/%d\n\n" % (i, len(read_nodes))
-    # check_all_passes_have_coppied(path_mapings)
+    check_all_passes_have_copied(path_mapings)
     replace_reads(path_mapings)
     update_shotgun()
 
@@ -57,10 +57,73 @@ def main():
         os.remove(new_script_path)
     os.rename(get_localised_nuke_script(), new_script_path)
 
-# def check_all_passes_have_coppied():
-#     print "____________________________________"
-#     print "Checking All passes have copied"
-    
+
+def check_all_passes_have_copied(mappings):
+    print "----Checking All passes have copied----"
+    all_sources = map(lambda x: x[0], mappings)
+    all_sources = filter(lambda x: str(x).strip() not in ["", "None"], all_sources)
+    # for source in all_sources:
+    #     print "This is a source:", source
+    all_copied_lighting = filter(is_lighting, all_sources)
+    all_lighting_passes = []
+    for a in all_copied_lighting:
+        all_lighting_passes.extend(get_all_passes_from_one_pass(a))
+    all_uncopied_lighting_passes = set(all_lighting_passes) - set(all_copied_lighting)
+    # for source in all_uncopied_lighting_passes:
+    #     print "This is an uncopied source:", source
+    c = 1
+    for uncopied in all_uncopied_lighting_passes:
+        print "\n\n%d/%d uncopied passed copying" % (c, len(all_uncopied_lighting_passes))
+        copy_missing_pass(uncopied)
+        c += 1
+
+
+def get_all_passes_from_one_pass(lighting_pass):
+    folder = os.path.dirname(lighting_pass)
+    all_files = os.listdir(folder)
+    all_files_without_frame = map(lambda x: x[: -len(lighting_pass.split("%")[1]) - 1], all_files)
+    unique_files_without_frame = set(all_files_without_frame)
+    passes_with_framing = map(lambda x: x + "%" + lighting_pass.split("%")[1], unique_files_without_frame)
+    full_paths_to_passes = map(lambda x: os.path.join(folder, x), passes_with_framing)
+    return full_paths_to_passes
+
+
+def copy_missing_pass(path):
+    global report_str
+    print "Start localise for missing pass %s" % os.path.basename(path)
+    final_dest_path = get_dest_path(path)
+    r = ""
+    source_files, first, last = get_all_missing_source_files(path)
+    dest_files = get_all_missing_dest_files(final_dest_path, first, last)
+    source_files, dest_files = filter_already_existing(source_files, dest_files)
+    done = False
+    if len(source_files):
+        done = basic_copy(source_files, dest_files)
+    r += "Localised filenames renamed from/to:\n"
+    r += "%s\n" % os.path.basename(path)
+    if done:
+        r += "-->\n"
+    else:
+        r += "-/->\n"
+    r += "%s\n" % os.path.basename(final_dest_path)
+    report_str += r
+    print r
+
+
+def get_all_missing_source_files(path):
+    # path is hahahah.%04d.exr split it to hahaha. and .exr andf glob for results
+    files = glob.glob(path.split("%")[0] + "[0-9]*" + path.split("%")[1][3:])
+    files = sorted(files)
+    first = int(files[0][len(path.split("%")[0]): - len(path.split("%")[1][3:])])
+    last = int(files[-1][len(path.split("%")[0]): - len(path.split("%")[1][3:])])
+    return files, first, last
+
+
+def get_all_missing_dest_files(path, first, last):
+    files = []
+    for r in range(first, last + 1):
+        files.append(path % r)
+    return files
 
 
 def get_localised_nuke_script():
@@ -218,6 +281,7 @@ def get_nuke_script():
     script = localise_path(os.environ.get("SCRIPT"))
     return script
 
+
 def get_new_nuke_script():
     path = get_nuke_script()
     folder = os.path.dirname(path)
@@ -367,19 +431,13 @@ def localise_read_node(read_node):
 
     source_files = get_source_files(read_node)
     dest_files = get_dest_files(read_node, final_dest_path)
-    # dest_files = []
-    # for source_file in source_files:
-    #     dest_files.append(get_dest_path(source_file, path))
+
 
     source_files, dest_files = filter_already_existing(source_files, dest_files)
     done = False
     if len(source_files):
         done = basic_copy(source_files, dest_files)
-        # copied_files = robocopy_files(os.path.dirname(source_files[0]),
-        #                                os.path.dirname(dest_files[0]),
-        #                                source_files)
 
-        # rename_files(copied_files, dest_files)
 
     r += "Localised filenames renamed from/to:\n"
     r += "%s\n" % os.path.basename(path)

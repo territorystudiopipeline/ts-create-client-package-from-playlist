@@ -49,7 +49,7 @@ class CopyPlaylistVersionsToFolder(tank.platform.Application):
         deny_platforms = self.get_setting("deny_platforms")
 
         p = {
-            "title": "Create Client package",
+            "title": "Create Client Package",
 
             "deny_permissions": deny_permissions,
             "deny_platforms": deny_platforms,
